@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: theme(colors.canvas);
+  color: theme(colors.ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: theme(fontFamily.system);
+}
+
+/* Calm focus ring for large touch targets */
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Print: one report at a time, clean pages ── */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-card {
+    break-inside: avoid;
+  }
+  .print-photo {
+    max-height: 2.5in;
+    width: auto;
+  }
+  @page {
+    margin: 0.6in;
+  }
+  body {
+    background: white;
+  }
+}
