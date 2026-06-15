@@ -1,0 +1,18 @@
+{
+  "name": "Standby — Generator Takeoff",
+  "short_name": "Standby",
+  "description": "Residential standby generator site survey, takeoff & quote.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f7",
+  "theme_color": "#f5f5f7",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
