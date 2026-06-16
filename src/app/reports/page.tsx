@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { reportElementToPdfBase64 } from "@/lib/pdf";
 import { useJob } from "@/lib/store/useJob";
 import { useEngineState } from "@/lib/store/useEngine";
 import { findModel } from "@/lib/catalog/generac";
@@ -19,6 +20,9 @@ export default function ReportsPage() {
   const [kind, setKind] = useState<ReportKind>("customer");
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const captureRef = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
     init();
   }, [init]);
@@ -75,18 +79,44 @@ export default function ReportsPage() {
 
   const customerEmail = job.customer.email;
   const pmEmail = company?.pmEmail ?? "";
+
   function copy(text: string) {
     navigator.clipboard?.writeText(text);
   }
 
-  // Professional prefilled emails (mailto). Attaching the PDF: use Print → Save
-  // as PDF, then attach — true server-side send is a later phase.
-  function customerMailto(): string {
-    const subject = `Standby generator proposal — ${job!.customer.name}`;
-    const body = [
+  async function sendEmail(to: string, subject: string, body: string, filename: string) {
+    if (!to || !captureRef.current) return;
+    setSending(true);
+    setSendMsg(null);
+    try {
+      const pdfBase64 = await reportElementToPdfBase64(captureRef.current);
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ to, subject, body, pdfBase64, filename }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSendMsg({ ok: false, text: data.error ?? `Failed (${res.status})` });
+      } else {
+        setSendMsg({ ok: true, text: `Sent to ${to}` });
+      }
+    } catch (e) {
+      setSendMsg({ ok: false, text: String(e) });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // ── Email subjects/bodies (shared by the send-with-PDF and mailto paths) ──
+  function customerSubject() {
+    return `Standby generator proposal — ${job!.customer.name}`;
+  }
+  function customerBody() {
+    return [
       `Hi ${job!.customer.name || "there"},`,
       "",
-      `Thank you for the opportunity. Please find your standby power proposal below.`,
+      "Thank you for the opportunity. Your standby power proposal is attached as a PDF.",
       "",
       `Proposed system: ${model!.name} (${model!.kw} kW), ${job!.house.serviceAmps}A automatic transfer switch.`,
       `Turnkey investment: ${money(quote!.sell.total)}`,
@@ -95,22 +125,29 @@ export default function ReportsPage() {
       [company?.phone, company?.email].filter(Boolean).join(" · "),
       company?.license ? `Lic# ${company.license}` : "",
     ]
-      .filter((l) => l !== undefined)
+      .filter((l) => l !== "")
       .join("\n");
-    return `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
-
-  function pmMailto(): string {
-    const subject = `Install packet — ${job!.customer.name} (${model!.name})`;
-    const body = [
+  function pmSubject() {
+    return `Install packet — ${job!.customer.name} (${model!.name})`;
+  }
+  function pmBody() {
+    return [
       `Project: ${job!.customer.name}`,
       `Address: ${job!.customer.address}`,
       `System: ${model!.name} (${model!.kw} kW), ${job!.house.serviceAmps}A, ${job!.house.fuel.toUpperCase()}`,
       `Gen→panel ${job!.house.distGenPanelFt}ft · Gen→elec mtr ${job!.house.distGenElecMeterFt}ft · Gen→gas mtr ${job!.house.distGenGasFt}ft`,
       "",
-      `Print the Contractor report to PDF and attach for the crew.`,
+      "Full install packet (scopes, distances, site photos) attached as a PDF.",
     ].join("\n");
-    return `mailto:${pmEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  // Fallback "open in mail app" links (no attachment — that path uses the API).
+  function customerMailto(): string {
+    return `mailto:${customerEmail}?subject=${encodeURIComponent(customerSubject())}&body=${encodeURIComponent(customerBody())}`;
+  }
+  function pmMailto(): string {
+    return `mailto:${pmEmail}?subject=${encodeURIComponent(pmSubject())}&body=${encodeURIComponent(pmBody())}`;
   }
 
   return (
@@ -129,7 +166,7 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      <div className="no-print mb-4 flex gap-2">
+      <div className="no-print mb-2 flex gap-2">
         <button
           onClick={() => window.print()}
           className="flex-1 rounded-xl border border-hairline bg-white py-2 text-sm"
@@ -137,38 +174,55 @@ export default function ReportsPage() {
           Print / PDF
         </button>
         {kind === "customer" && (
-          <a
-            href={customerMailto()}
-            className={`flex-1 rounded-xl border border-hairline bg-white py-2 text-center text-sm ${
-              customerEmail ? "" : "pointer-events-none opacity-40"
-            }`}
+          <button
+            onClick={() => sendEmail(customerEmail, customerSubject(), customerBody(), `Proposal-${slug(job!.customer.name)}.pdf`)}
+            disabled={!customerEmail || sending}
+            className="flex-1 rounded-xl bg-accent py-2 text-center text-sm font-semibold text-white disabled:opacity-40"
           >
-            Email customer
-          </a>
+            {sending ? "Sending…" : "Email customer (PDF)"}
+          </button>
         )}
         {kind === "contractor" && (
-          <a
-            href={pmMailto()}
-            className={`flex-1 rounded-xl border border-hairline bg-white py-2 text-center text-sm ${
-              pmEmail ? "" : "pointer-events-none opacity-40"
-            }`}
+          <button
+            onClick={() => sendEmail(pmEmail, pmSubject(), pmBody(), `Install-Packet-${slug(job!.customer.name)}.pdf`)}
+            disabled={!pmEmail || sending}
+            className="flex-1 rounded-xl bg-accent py-2 text-center text-sm font-semibold text-white disabled:opacity-40"
           >
-            {pmEmail ? "Email PM" : "Set PM email in Settings"}
+            {sending ? "Sending…" : pmEmail ? "Email PM (PDF)" : "Set PM email in Settings"}
+          </button>
+        )}
+      </div>
+      <div className="no-print mb-4 flex items-center justify-between gap-2">
+        {kind !== "internal" && (
+          <a
+            href={kind === "customer" ? customerMailto() : pmMailto()}
+            className="text-xs text-accent underline"
+          >
+            Open in mail app instead
           </a>
+        )}
+        {sendMsg && (
+          <span className={`text-xs ${sendMsg.ok ? "text-ok" : "text-bad"}`}>{sendMsg.text}</span>
         )}
       </div>
 
-      {kind === "contractor" && (
-        <ContractorReport job={job} model={model} det={deterministic} bom={fullBom} company={company} logoUrl={logoUrl} onCopy={copy} />
-      )}
-      {kind === "customer" && (
-        <CustomerReport job={job} model={model} price={quote.sell.total} company={company} logoUrl={logoUrl} onCopy={copy} />
-      )}
-      {kind === "internal" && (
-        <InternalReport job={job} model={model} quote={quote} bom={fullBom} ai={ai} company={company} logoUrl={logoUrl} onCopy={copy} />
-      )}
+      <div ref={captureRef}>
+        {kind === "contractor" && (
+          <ContractorReport job={job} model={model} det={deterministic} bom={fullBom} company={company} logoUrl={logoUrl} onCopy={copy} />
+        )}
+        {kind === "customer" && (
+          <CustomerReport job={job} model={model} price={quote.sell.total} company={company} logoUrl={logoUrl} onCopy={copy} />
+        )}
+        {kind === "internal" && (
+          <InternalReport job={job} model={model} quote={quote} bom={fullBom} ai={ai} company={company} logoUrl={logoUrl} onCopy={copy} />
+        )}
+      </div>
     </Screen>
   );
+}
+
+function slug(s: string): string {
+  return (s || "job").trim().replace(/[^\w]+/g, "-").replace(/^-+|-+$/g, "") || "job";
 }
 
 // Branded letterhead shown on every report.
