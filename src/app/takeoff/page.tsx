@@ -147,16 +147,139 @@ export default function TakeoffPage() {
         <DeterministicSummary det={deterministic} />
       )}
 
-      {bom && <BomTable bom={bom} />}
+      {bom && <BomTable bom={bom} title="Priced BOM (engine + AI)" />}
+
+      <CustomLines
+        lines={job.customLines ?? []}
+        onAdd={(line) =>
+          update((j) => {
+            j.customLines = [...(j.customLines ?? []), line];
+          })
+        }
+        onRemove={(idx) =>
+          update((j) => {
+            j.customLines = (j.customLines ?? []).filter((_, i) => i !== idx);
+          })
+        }
+      />
 
       {aiUsed && ai && <AiPanel ai={ai} />}
 
-      {bom && (
+      {(bom || (job.customLines && job.customLines.length > 0)) && (
         <div className="mt-6">
           <PrimaryButton href="/reports">View reports</PrimaryButton>
         </div>
       )}
     </Screen>
+  );
+}
+
+function CustomLines({
+  lines,
+  onAdd,
+  onRemove,
+}: {
+  lines: BomLine[];
+  onAdd: (line: BomLine) => void;
+  onRemove: (idx: number) => void;
+}) {
+  const [scope, setScope] = useState<"electrical" | "gas">("electrical");
+  const [desc, setDesc] = useState("");
+  const [qty, setQty] = useState(1);
+  const [unit, setUnit] = useState("ea");
+  const [cost, setCost] = useState(0);
+
+  function add() {
+    if (!desc.trim()) return;
+    onAdd({
+      scope,
+      description: desc.trim(),
+      qty,
+      unit: unit as BomLine["unit"],
+      unitCost: cost,
+      lineCost: Math.round(qty * cost * 100) / 100,
+      costSource: "manual",
+      confidence: "high",
+    });
+    setDesc("");
+    setQty(1);
+    setCost(0);
+  }
+
+  return (
+    <Card className="mt-4">
+      <h2 className="mb-2 text-sm font-semibold">Manual line items</h2>
+      <p className="mb-3 text-[11px] text-subtle">
+        Add anything the engine didn&apos;t capture (extra materials, sub work,
+        rentals). These flow into the materials cost and the internal report.
+      </p>
+      {lines.length > 0 && (
+        <div className="mb-3 divide-y divide-hairline">
+          {lines.map((l, i) => (
+            <div key={i} className="flex items-center justify-between py-1.5 text-sm">
+              <span className="flex-1">
+                {l.description}{" "}
+                <span className="text-[10px] text-subtle">
+                  {l.qty} {l.unit} · {l.scope}
+                </span>
+              </span>
+              <span className="mr-2">{money2(l.lineCost)}</span>
+              <button className="text-bad" onClick={() => onRemove(i)} aria-label="remove">
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <input
+            className="w-full rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm outline-none focus:border-accent"
+            placeholder="Description (e.g. Core drill 8in wall)"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          <select
+            className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
+            value={scope}
+            onChange={(e) => setScope(e.target.value as "electrical" | "gas")}
+          >
+            <option value="electrical">Elec</option>
+            <option value="gas">Gas</option>
+          </select>
+          <input
+            className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
+            type="number"
+            inputMode="decimal"
+            placeholder="Qty"
+            value={qty}
+            onChange={(e) => setQty(Number(e.target.value))}
+          />
+          <input
+            className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
+            placeholder="unit"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+          />
+          <input
+            className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
+            type="number"
+            inputMode="decimal"
+            placeholder="$/unit"
+            value={cost || ""}
+            onChange={(e) => setCost(Number(e.target.value))}
+          />
+        </div>
+        <button
+          onClick={add}
+          className="w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white active:opacity-80"
+        >
+          Add line item
+        </button>
+      </div>
+    </Card>
   );
 }
 
@@ -223,11 +346,11 @@ function DeterministicSummary({ det }: { det: DeterministicTakeoff }) {
   );
 }
 
-function BomTable({ bom }: { bom: BomLine[] }) {
+function BomTable({ bom, title = "Priced BOM" }: { bom: BomLine[]; title?: string }) {
   const total = bom.reduce((s, l) => s + l.lineCost, 0);
   return (
     <Card className="mt-4">
-      <h2 className="mb-2 text-sm font-semibold">Priced BOM</h2>
+      <h2 className="mb-2 text-sm font-semibold">{title}</h2>
       <div className="divide-y divide-hairline">
         {bom.map((l, i) => (
           <div key={i} className="py-2 text-sm">

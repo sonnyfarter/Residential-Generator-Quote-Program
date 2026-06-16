@@ -8,17 +8,37 @@ import { computeQuote } from "@/lib/pricing/computeQuote";
 import { atsCostFor } from "@/lib/pricing/ats";
 import { Screen, Card, money, money2 } from "@/components/ui";
 import { ReportPhotos } from "@/components/ReportPhotos";
-import type { BomLine } from "@/lib/types";
+import type { BomLine, CompanyProfile } from "@/lib/types";
 
 type ReportKind = "contractor" | "customer" | "internal";
 
 export default function ReportsPage() {
   const { job, loading, init } = useJob();
+  const store = useJob((s) => s.store);
   const { bom, deterministic, ai } = useEngineState();
   const [kind, setKind] = useState<ReportKind>("customer");
+  const [company, setCompany] = useState<CompanyProfile | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   useEffect(() => {
     init();
   }, [init]);
+  useEffect(() => {
+    store.getCompany().then((c) => setCompany(c ?? null));
+  }, [store]);
+  useEffect(() => {
+    if (company?.logo) {
+      const u = URL.createObjectURL(company.logo);
+      setLogoUrl(u);
+      return () => URL.revokeObjectURL(u);
+    }
+    setLogoUrl(null);
+  }, [company]);
+
+  // Engine BOM + manually added lines.
+  const fullBom = useMemo(
+    () => [...(bom ?? []), ...(job?.customLines ?? [])],
+    [bom, job]
+  );
 
   const model = findModel(job?.selectedModel);
   const quote = useMemo(() => {
@@ -31,10 +51,10 @@ export default function ReportsPage() {
       gensetMsrp: model.msrp,
       atsCost: atsCostFor(job.house.serviceAmps),
       items: job.items,
-      bom: bom ?? undefined,
+      bom: fullBom.length ? fullBom : undefined,
       hazardsCost,
     });
-  }, [job, model, bom]);
+  }, [job, model, fullBom]);
 
   if (loading || !job) {
     return (
@@ -54,8 +74,43 @@ export default function ReportsPage() {
   }
 
   const customerEmail = job.customer.email;
+  const pmEmail = company?.pmEmail ?? "";
   function copy(text: string) {
     navigator.clipboard?.writeText(text);
+  }
+
+  // Professional prefilled emails (mailto). Attaching the PDF: use Print → Save
+  // as PDF, then attach — true server-side send is a later phase.
+  function customerMailto(): string {
+    const subject = `Standby generator proposal — ${job!.customer.name}`;
+    const body = [
+      `Hi ${job!.customer.name || "there"},`,
+      "",
+      `Thank you for the opportunity. Please find your standby power proposal below.`,
+      "",
+      `Proposed system: ${model!.name} (${model!.kw} kW), ${job!.house.serviceAmps}A automatic transfer switch.`,
+      `Turnkey investment: ${money(quote!.sell.total)}`,
+      "",
+      company?.name ? `${company.name}` : "",
+      [company?.phone, company?.email].filter(Boolean).join(" · "),
+      company?.license ? `Lic# ${company.license}` : "",
+    ]
+      .filter((l) => l !== undefined)
+      .join("\n");
+    return `mailto:${customerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  function pmMailto(): string {
+    const subject = `Install packet — ${job!.customer.name} (${model!.name})`;
+    const body = [
+      `Project: ${job!.customer.name}`,
+      `Address: ${job!.customer.address}`,
+      `System: ${model!.name} (${model!.kw} kW), ${job!.house.serviceAmps}A, ${job!.house.fuel.toUpperCase()}`,
+      `Gen→panel ${job!.house.distGenPanelFt}ft · Gen→elec mtr ${job!.house.distGenElecMeterFt}ft · Gen→gas mtr ${job!.house.distGenGasFt}ft`,
+      "",
+      `Print the Contractor report to PDF and attach for the crew.`,
+    ].join("\n");
+    return `mailto:${pmEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   }
 
   return (
@@ -79,39 +134,72 @@ export default function ReportsPage() {
           onClick={() => window.print()}
           className="flex-1 rounded-xl border border-hairline bg-white py-2 text-sm"
         >
-          Print
+          Print / PDF
         </button>
         {kind === "customer" && (
           <a
-            href={`mailto:${customerEmail}?subject=${encodeURIComponent(
-              "Your standby generator proposal"
-            )}`}
-            className="flex-1 rounded-xl border border-hairline bg-white py-2 text-center text-sm"
+            href={customerMailto()}
+            className={`flex-1 rounded-xl border border-hairline bg-white py-2 text-center text-sm ${
+              customerEmail ? "" : "pointer-events-none opacity-40"
+            }`}
           >
             Email customer
+          </a>
+        )}
+        {kind === "contractor" && (
+          <a
+            href={pmMailto()}
+            className={`flex-1 rounded-xl border border-hairline bg-white py-2 text-center text-sm ${
+              pmEmail ? "" : "pointer-events-none opacity-40"
+            }`}
+          >
+            {pmEmail ? "Email PM" : "Set PM email in Settings"}
           </a>
         )}
       </div>
 
       {kind === "contractor" && (
-        <ContractorReport job={job} model={model} det={deterministic} bom={bom} onCopy={copy} />
+        <ContractorReport job={job} model={model} det={deterministic} bom={fullBom} company={company} logoUrl={logoUrl} onCopy={copy} />
       )}
       {kind === "customer" && (
-        <CustomerReport job={job} model={model} price={quote.sell.total} onCopy={copy} />
+        <CustomerReport job={job} model={model} price={quote.sell.total} company={company} logoUrl={logoUrl} onCopy={copy} />
       )}
       {kind === "internal" && (
-        <InternalReport job={job} model={model} quote={quote} bom={bom} ai={ai} onCopy={copy} />
+        <InternalReport job={job} model={model} quote={quote} bom={fullBom} ai={ai} company={company} logoUrl={logoUrl} onCopy={copy} />
       )}
     </Screen>
   );
 }
 
+// Branded letterhead shown on every report.
+function Letterhead({ company, logoUrl }: { company: CompanyProfile | null; logoUrl: string | null }) {
+  if (!company && !logoUrl) return null;
+  return (
+    <div className="mb-3 flex items-center gap-3 border-b border-hairline pb-3">
+      {logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logoUrl} alt="logo" className="h-12 w-12 object-contain" />
+      )}
+      <div className="leading-tight">
+        <div className="text-sm font-semibold">{company?.name}</div>
+        <div className="text-[11px] text-subtle">
+          {[company?.phone, company?.email].filter(Boolean).join(" · ")}
+        </div>
+        {company?.license && (
+          <div className="text-[11px] text-subtle">Lic# {company.license}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Contractor: scopes + site, NO pricing ────────────────────────────────────
-function ContractorReport({ job, model, det, bom, onCopy }: any) {
+function ContractorReport({ job, model, det, bom, company, logoUrl, onCopy }: any) {
   const elecBom: BomLine[] = (bom ?? []).filter((l: BomLine) => l.scope === "electrical");
   const gasBom: BomLine[] = (bom ?? []).filter((l: BomLine) => l.scope === "gas");
   return (
     <Card>
+      <Letterhead company={company} logoUrl={logoUrl} />
       <ReportHeader title="Project Information Form" job={job} />
       <Section title="Proposed system">
         {model.name} · {model.kw} kW {model.cat}-cooled · {job.house.serviceAmps}A service · {job.house.fuel.toUpperCase()}
@@ -145,9 +233,10 @@ function ContractorReport({ job, model, det, bom, onCopy }: any) {
 }
 
 // ── Customer: marked-up SELL only ────────────────────────────────────────────
-function CustomerReport({ job, model, price, onCopy }: any) {
+function CustomerReport({ job, model, price, company, logoUrl, onCopy }: any) {
   return (
     <Card>
+      <Letterhead company={company} logoUrl={logoUrl} />
       <div className="mb-3 border-b border-hairline pb-3">
         <div className="text-lg font-semibold">Standby Power Proposal</div>
         <div className="text-sm text-subtle">{job.customer.name}</div>
@@ -184,12 +273,13 @@ function CustomerReport({ job, model, price, onCopy }: any) {
 }
 
 // ── Internal: full cost→sell→profit, DO NOT SEND ─────────────────────────────
-function InternalReport({ job, model, quote, bom, ai, onCopy }: any) {
+function InternalReport({ job, model, quote, bom, ai, company, logoUrl, onCopy }: any) {
   return (
     <Card>
       <div className="mb-3 rounded-lg bg-bad px-3 py-2 text-center text-sm font-bold text-white">
         INTERNAL — DO NOT SEND
       </div>
+      <Letterhead company={company} logoUrl={logoUrl} />
       <ReportHeader title="Internal Cost Sheet" job={job} />
       <Section title="Unit">
         {model.name} · MSRP {money(model.msrp)}{" "}

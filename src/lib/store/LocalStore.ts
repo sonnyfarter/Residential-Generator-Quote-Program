@@ -1,6 +1,6 @@
 import type { JobStore } from "./JobStore";
 import { db } from "./db";
-import type { Job, PriceBookItem, Photo } from "@/lib/types";
+import type { Job, PriceBookItem, Photo, CompanyProfile } from "@/lib/types";
 import { SEED_PRICE_BOOK } from "@/lib/priceBook/seed";
 
 export class LocalStore implements JobStore {
@@ -60,5 +60,13 @@ export class LocalStore implements JobStore {
 
   async upsertPriceItems(items: PriceBookItem[]): Promise<void> {
     await db().priceBook.bulkPut(items);
+  }
+
+  async getCompany(): Promise<CompanyProfile | undefined> {
+    return db().company.get("company");
+  }
+
+  async saveCompany(company: CompanyProfile): Promise<void> {
+    await db().company.put({ ...company, id: "company" });
   }
 }

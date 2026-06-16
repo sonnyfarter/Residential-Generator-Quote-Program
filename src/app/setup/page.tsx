@@ -165,6 +165,12 @@ export default function SetupPage() {
         >
           Manage price book
         </Link>
+        <Link
+          href="/settings"
+          className="block w-full rounded-2xl border border-hairline bg-white py-3 text-center text-sm font-medium"
+        >
+          Company profile & logo
+        </Link>
         <button
           onClick={async () => {
             if (confirm("Start a new job? Current job stays saved.")) {

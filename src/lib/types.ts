@@ -285,4 +285,20 @@ export interface Job {
   pricing: PricingConfig;
   ai?: AiTakeoffResponse | null;
   diagram?: DiagramLayout;
+  /** Manually added takeoff lines (with cost). Persist across sessions. */
+  customLines?: BomLine[];
+}
+
+// ── Company profile (Settings) ───────────────────────────────────────────────
+
+export interface CompanyProfile {
+  id: "company";
+  name: string;
+  phone: string;
+  email: string;
+  license: string;
+  /** Default project-manager recipient for "send to PM". */
+  pmEmail: string;
+  /** Company logo, persisted as a blob; rendered on reports. */
+  logo?: Blob | null;
 }

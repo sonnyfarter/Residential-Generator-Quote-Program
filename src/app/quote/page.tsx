@@ -24,12 +24,13 @@ export default function QuotePage() {
     const hazardsCost = job.items
       .filter((i) => i.type === "hazard")
       .reduce((s, i) => s + (Number(i.values.estCost) || 0), 0);
+    const fullBom = [...(bom ?? []), ...(job.customLines ?? [])];
     return computeQuote({
       pricing: job.pricing,
       gensetMsrp: model.msrp,
       atsCost,
       items: job.items,
-      bom: bom ?? undefined,
+      bom: fullBom.length ? fullBom : undefined,
       hazardsCost,
     });
   }, [job, model, bom]);

@@ -1,4 +1,4 @@
-import type { Job, PriceBookItem, Photo } from "@/lib/types";
+import type { Job, PriceBookItem, Photo, CompanyProfile } from "@/lib/types";
 
 // Persistence abstraction. LocalStore (IndexedDB) now; CloudStore stub later.
 // All UI talks to this interface, so swapping in cloud sync is a wiring change.
@@ -19,4 +19,8 @@ export interface JobStore {
   getPriceBook(): Promise<PriceBookItem[]>;
   replacePriceBook(items: PriceBookItem[]): Promise<void>;
   upsertPriceItems(items: PriceBookItem[]): Promise<void>;
+
+  // company profile (branding for reports)
+  getCompany(): Promise<CompanyProfile | undefined>;
+  saveCompany(company: CompanyProfile): Promise<void>;
 }

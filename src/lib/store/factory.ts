@@ -33,5 +33,6 @@ export function newJob(): Job {
     selectedModel: undefined,
     pricing: { ...PRICING_DEFAULTS },
     ai: null,
+    customLines: [],
   };
 }
