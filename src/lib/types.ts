@@ -104,20 +104,28 @@ export interface CustomerInfo {
 export interface HouseInfo {
   serviceAmps: 100 | 200 | 400;
   fuel: FuelType;
-  /** Distance generator → transfer switch / panel, feet (rough field entry). */
-  elecRunFt: number;
-  /** Distance gas meter/tank → generator, feet. */
-  gasRunFt: number;
+  /** Generator → main panel, feet (feeder conductor run). */
+  distGenPanelFt: number;
+  /** Generator → gas meter/tank, feet (gas line run). */
+  distGenGasFt: number;
+  /** Generator → electric meter, feet (service tie-in). */
+  distGenElecMeterFt: number;
   /** Existing connected gas appliance load, BTU/hr, for the meter check. */
   existingGasBtu: number;
   /** Supply pressure for gas sizing, inches of water column (NG ~7" wc default). */
   gasSupplyInWc: number;
 }
 
+export type ApplianceFuel = "gas" | "electric";
+
 export interface GasAppliance {
   id: string;
   name: string;
-  btu: number; // input BTU/hr
+  /** Preset key from GAS_APPLIANCE_PRESETS, or "other". */
+  type: string;
+  btu: number; // input BTU/hr (nameplate)
+  /** Only "gas" appliances contribute to the gas meter load. */
+  fuel: ApplianceFuel;
 }
 
 // ── Pricing ──────────────────────────────────────────────────────────────────
@@ -256,6 +264,13 @@ export interface QuoteResult {
   gensetCostUnverified: boolean;
 }
 
+// ── Site diagram ─────────────────────────────────────────────────────────────
+
+/** Percentages 0–100 within the diagram board. */
+export interface DiagramLayout {
+  house: { x: number; y: number; w: number; h: number };
+}
+
 // ── Job (the unit of persistence) ────────────────────────────────────────────
 
 export interface Job {
@@ -269,4 +284,5 @@ export interface Job {
   selectedModel?: string; // GeneratorModel.model
   pricing: PricingConfig;
   ai?: AiTakeoffResponse | null;
+  diagram?: DiagramLayout;
 }

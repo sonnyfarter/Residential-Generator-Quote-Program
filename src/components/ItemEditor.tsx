@@ -28,7 +28,9 @@ export function ItemEditor({
       const v = values[f.key];
       return v !== undefined && v !== "" && v !== null;
     });
-    if (required.length > 0 && filled.length === required.length) return "complete";
+    const photoOk = !config.requirePhoto || photoIds.length > 0;
+    const fieldsOk = required.length === 0 || filled.length === required.length;
+    if (fieldsOk && photoOk) return "complete";
     if (filled.length > 0 || photoIds.length > 0 || Object.keys(values).length)
       return "partial";
     return "missing";
@@ -98,8 +100,16 @@ export function ItemEditor({
 
           <div>
             <span className="mb-2 block text-xs font-medium text-subtle">
-              Photos
+              Photos{config.requirePhoto ? " (required)" : ""}
             </span>
+            {config.photoHint && (
+              <p className="mb-2 text-[11px] text-subtle">{config.photoHint}</p>
+            )}
+            {config.requirePhoto && photoIds.length === 0 && (
+              <p className="mb-2 rounded bg-warn/10 px-2 py-1 text-[11px] text-warn">
+                A photo is required before this item can be marked complete.
+              </p>
+            )}
             <PhotoStrip jobId={jobId} photoIds={photoIds} onChange={setPhotoIds} />
           </div>
         </div>

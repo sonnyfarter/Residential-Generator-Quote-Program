@@ -129,13 +129,24 @@ export default function SurveyPage() {
       </button>
       {showDiagram && (
         <div className="mt-3">
-          <SiteDiagram items={job.items} />
+          <SiteDiagram
+            items={job.items}
+            layout={job.diagram}
+            onCommit={(pins, houseRect) =>
+              update((j) => {
+                for (const it of j.items) {
+                  if (pins[it.id]) it.pin = pins[it.id];
+                }
+                j.diagram = { house: houseRect };
+              })
+            }
+          />
         </div>
       )}
 
       <div className="mt-6">
         <PrimaryButton href="/setup" disabled={!requiredComplete}>
-          {requiredComplete ? "Continue to Setup" : "Complete the three required"}
+          {requiredComplete ? "Continue to Setup" : "Complete the required captures"}
         </PrimaryButton>
       </div>
 
@@ -154,20 +165,21 @@ export default function SurveyPage() {
 
 // Mirror required survey fields into house info.
 function syncHouse(house: HouseInfo, items: SurveyItem[]) {
-  const gen = items.find((i) => i.type === "generator");
   const gas = items.find((i) => i.type === "gas_meter");
   const elec = items.find((i) => i.type === "electric_meter");
+  const panel = items.find((i) => i.type === "panel");
   if (gas) {
     if (gas.values.fuel === "ng" || gas.values.fuel === "lp")
       house.fuel = gas.values.fuel;
     if (typeof gas.values.distanceFt === "number")
-      house.gasRunFt = gas.values.distanceFt;
+      house.distGenGasFt = gas.values.distanceFt;
   }
   if (elec) {
     const amps = Number(elec.values.serviceAmps);
     if (amps === 100 || amps === 200 || amps === 400) house.serviceAmps = amps;
     if (typeof elec.values.distanceFt === "number")
-      house.elecRunFt = elec.values.distanceFt;
+      house.distGenElecMeterFt = elec.values.distanceFt;
   }
-  void gen;
+  if (panel && typeof panel.values.distanceFt === "number")
+    house.distGenPanelFt = panel.values.distanceFt;
 }

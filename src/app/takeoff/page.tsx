@@ -118,8 +118,9 @@ export default function TakeoffPage() {
       <Card className="space-y-2">
         <ConfirmRow label="Generator" value={`${model.name} (${model.kw} kW)`} />
         <ConfirmRow label="Service" value={`${job.house.serviceAmps} A`} />
-        <ConfirmRow label="Elec run" value={`${job.house.elecRunFt} ft`} />
-        <ConfirmRow label="Gas run" value={`${job.house.gasRunFt} ft`} />
+        <ConfirmRow label="Gen → panel" value={`${job.house.distGenPanelFt} ft`} />
+        <ConfirmRow label="Gen → elec meter" value={`${job.house.distGenElecMeterFt} ft`} />
+        <ConfirmRow label="Gen → gas meter" value={`${job.house.distGenGasFt} ft`} />
         <ConfirmRow label="Fuel" value={job.house.fuel.toUpperCase()} />
       </Card>
 

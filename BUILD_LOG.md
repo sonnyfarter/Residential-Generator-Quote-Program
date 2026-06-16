@@ -60,6 +60,28 @@ Running record of decisions and assumptions.
 - `tsc --noEmit`, `next lint`, `vitest` (10 tests incl. acceptance), and
   `next build` all pass. Sample job runs end-to-end through the engine.
 
+## Field-feedback revision (round 2)
+
+Based on first hands-on review:
+- **Gas screen rebuilt.** Appliance picker with per-type typical nameplate BTU
+  presets (`lib/survey/gasAppliances.ts`), a per-appliance **gas/electric toggle**
+  (electric units drop out of the gas load), manual BTU override, and a
+  **worst-case** auto-populate. Preset values are labeled "confirm against the
+  nameplate" — typical figures, not presented as verified.
+- **Explicit run distances.** `HouseInfo` now carries three captured runs —
+  generator→panel, generator→gas meter, generator→electric meter. The feeder is
+  sized to the worst case of panel/meter runs; the gas line uses the gas-meter
+  run. They auto-fill from the survey captures and are editable in Setup.
+- **Required-photo gating.** Items can require a photo to count complete.
+  **HVAC requires an LRA/data-tag photo**; generator, both meters, and the panel
+  require a photo too.
+- **Panel promoted to a required capture** with a distance-to-generator field.
+- **Interactive site diagram.** Drag the home footprint (move + resize) and each
+  marker; links from the generator show the captured distances. Layout persists
+  (`item.pin` + `job.diagram`), committed on release to avoid IndexedDB thrash.
+- **Customer report stays takeoff-free** (sell price + high-level inclusions
+  only); the full BOM/takeoff remains on the internal report exclusively.
+
 ## Later phases (architected, not built)
 
 - Cloud sync (`CloudStore`), Expo/native shell, real Graybar CSV load (mechanism
