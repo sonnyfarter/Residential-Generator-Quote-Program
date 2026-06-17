@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { reportElementToPdfBase64 } from "@/lib/pdf";
 import { useJob } from "@/lib/store/useJob";
 import { useEngineState } from "@/lib/store/useEngine";
-import { findModel } from "@/lib/catalog/generac";
+import { useCatalog } from "@/lib/catalog/useCatalog";
 import { computeQuote } from "@/lib/pricing/computeQuote";
 import { atsCostFor } from "@/lib/pricing/ats";
 import { Screen, Card, money, money2 } from "@/components/ui";
@@ -17,6 +17,7 @@ export default function ReportsPage() {
   const { job, loading, init } = useJob();
   const store = useJob((s) => s.store);
   const { bom, deterministic, ai } = useEngineState();
+  const { findModel } = useCatalog();
   const [kind, setKind] = useState<ReportKind>("customer");
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -38,9 +39,9 @@ export default function ReportsPage() {
     setLogoUrl(null);
   }, [company]);
 
-  // Engine BOM + manually added lines.
+  // Persisted (possibly edited) engine BOM + manually added lines.
   const fullBom = useMemo(
-    () => [...(bom ?? []), ...(job?.customLines ?? [])],
+    () => [...(job?.engineBom ?? bom ?? []), ...(job?.customLines ?? [])],
     [bom, job]
   );
 
@@ -311,13 +312,26 @@ function CustomerReport({ job, model, price, company, logoUrl, onCopy }: any) {
           <li>Permits and inspection coordination</li>
         </ul>
       </Section>
-      <div className="my-4 rounded-xl2 bg-canvas p-4 text-center">
-        <div className="text-xs uppercase tracking-wide text-subtle">
+      <div className="my-4 overflow-hidden rounded-xl2 border border-accent/20">
+        <div className="bg-accent px-4 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-white">
           Turnkey investment
         </div>
-        <div className="text-3xl font-bold text-accent">{money(price)}</div>
+        <div className="bg-canvas px-4 py-4 text-center">
+          <div className="text-4xl font-bold text-accent">{money(price)}</div>
+          <div className="mt-1 text-[11px] text-subtle">
+            Complete installation — equipment, labor, permits & startup
+          </div>
+        </div>
       </div>
-      <p className="text-xs text-subtle">
+      <Section title="Acceptance">
+        <div className="grid grid-cols-2 gap-4 pt-2 text-xs text-subtle">
+          <div className="border-t border-ink pt-1">Customer signature / date</div>
+          <div className="border-t border-ink pt-1">
+            {company?.name || "Company"} representative / date
+          </div>
+        </div>
+      </Section>
+      <p className="mt-2 text-[11px] text-subtle">
         Proposal valid 30 days. Final price subject to site verification and permit
         requirements.
       </p>

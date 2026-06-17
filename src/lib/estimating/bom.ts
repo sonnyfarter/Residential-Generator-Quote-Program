@@ -15,6 +15,8 @@ export interface BuildTakeoffInput {
   items: SurveyItem[];
   priceBook: PriceBookItem[];
   meterCapacityBtu?: number | null;
+  /** Spec-sheet full-load CFH entered by the user; overrides catalog value. */
+  fuelCfhOverride?: number | null;
 }
 
 const PVC_BY_TRADE: Record<string, string> = {
@@ -135,7 +137,7 @@ export function buildDeterministicTakeoff(
   // ── Gas ──
   const gas = sizeGas({
     fuel: house.fuel,
-    genFuelCfh: model.fuelCfh?.[house.fuel] ?? null,
+    genFuelCfh: input.fuelCfhOverride ?? model.fuelCfh?.[house.fuel] ?? null,
     runFt: house.distGenGasFt,
     existingBtu: house.existingGasBtu,
     meterCapacityBtu: input.meterCapacityBtu ?? null,

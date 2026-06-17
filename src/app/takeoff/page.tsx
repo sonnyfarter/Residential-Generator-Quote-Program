@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useJob } from "@/lib/store/useJob";
 import { useEngineState } from "@/lib/store/useEngine";
-import { findModel } from "@/lib/catalog/generac";
+import { useCatalog } from "@/lib/catalog/useCatalog";
 import { buildDeterministicTakeoff } from "@/lib/estimating/bom";
 import { mergeAiIntoBom } from "@/lib/estimating/merge";
 import type { AiTakeoffResponse, BomLine, DeterministicTakeoff } from "@/lib/types";
@@ -12,7 +12,8 @@ import { Screen, Card, PrimaryButton, money2 } from "@/components/ui";
 export default function TakeoffPage() {
   const { job, loading, init, update } = useJob();
   const store = useJob((s) => s.store);
-  const { bom, deterministic, ai, setResult } = useEngineState();
+  const { findModel } = useCatalog();
+  const { deterministic, ai, setResult } = useEngineState();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiUsed, setAiUsed] = useState(false);
@@ -40,8 +41,10 @@ export default function TakeoffPage() {
       house: { ...job.house, existingGasBtu },
       items: job.items,
       priceBook,
+      fuelCfhOverride: job.gensetFuelCfh ?? null,
     });
     setResult({ bom: det.bom, deterministic: det, ai: null });
+    await update((j) => (j.engineBom = det.bom));
     return det;
   }
 
@@ -88,7 +91,10 @@ export default function TakeoffPage() {
       const priceBook = await store.getPriceBook();
       const merged = mergeAiIntoBom(det, aiResp, priceBook);
       setResult({ bom: merged, deterministic: det, ai: aiResp });
-      await update((j) => (j.ai = aiResp));
+      await update((j) => {
+        j.ai = aiResp;
+        j.engineBom = merged;
+      });
       setAiUsed(true);
     } catch (e) {
       setError(String(e));
@@ -122,6 +128,25 @@ export default function TakeoffPage() {
         <ConfirmRow label="Gen → elec meter" value={`${job.house.distGenElecMeterFt} ft`} />
         <ConfirmRow label="Gen → gas meter" value={`${job.house.distGenGasFt} ft`} />
         <ConfirmRow label="Fuel" value={job.house.fuel.toUpperCase()} />
+        <div className="border-t border-hairline pt-2">
+          <label className="block text-xs font-medium text-subtle">
+            Generator full-load fuel — {job.house.fuel.toUpperCase()} (CFH, from spec sheet)
+          </label>
+          <input
+            className="mt-1 w-full rounded-xl border border-hairline bg-canvas px-3 py-2 text-base outline-none focus:border-accent"
+            type="number"
+            inputMode="decimal"
+            placeholder="e.g. 220 — leave blank if unknown"
+            value={job.gensetFuelCfh ?? ""}
+            onChange={(e) =>
+              update((j) => (j.gensetFuelCfh = e.target.value === "" ? null : Number(e.target.value)))
+            }
+          />
+          <p className="mt-1 text-[11px] text-subtle">
+            Enter the unit&apos;s nameplate/spec consumption to size the gas line.
+            Left blank, the takeoff flags it as a missing input rather than guessing.
+          </p>
+        </div>
       </Card>
 
       <div className="mt-4 space-y-2">
@@ -147,7 +172,26 @@ export default function TakeoffPage() {
         <DeterministicSummary det={deterministic} />
       )}
 
-      {bom && <BomTable bom={bom} title="Priced BOM (engine + AI)" />}
+      {job.engineBom && job.engineBom.length > 0 && (
+        <BomTable
+          bom={job.engineBom}
+          title="Priced BOM — tap a qty or cost to edit"
+          onEdit={(idx, change) =>
+            update((j) => {
+              const line = j.engineBom![idx];
+              const qty = change.qty ?? line.qty;
+              const unitCost = change.unitCost ?? line.unitCost;
+              j.engineBom![idx] = {
+                ...line,
+                qty,
+                unitCost,
+                lineCost: Math.round(qty * unitCost * 100) / 100,
+                costSource: change.unitCost !== undefined ? "manual" : line.costSource,
+              };
+            })
+          }
+        />
+      )}
 
       <CustomLines
         lines={job.customLines ?? []}
@@ -165,7 +209,8 @@ export default function TakeoffPage() {
 
       {aiUsed && ai && <AiPanel ai={ai} />}
 
-      {(bom || (job.customLines && job.customLines.length > 0)) && (
+      {((job.engineBom && job.engineBom.length > 0) ||
+        (job.customLines && job.customLines.length > 0)) && (
         <div className="mt-6">
           <PrimaryButton href="/reports">View reports</PrimaryButton>
         </div>
@@ -346,8 +391,18 @@ function DeterministicSummary({ det }: { det: DeterministicTakeoff }) {
   );
 }
 
-function BomTable({ bom, title = "Priced BOM" }: { bom: BomLine[]; title?: string }) {
+function BomTable({
+  bom,
+  title = "Priced BOM",
+  onEdit,
+}: {
+  bom: BomLine[];
+  title?: string;
+  onEdit?: (idx: number, change: { qty?: number; unitCost?: number }) => void;
+}) {
   const total = bom.reduce((s, l) => s + l.lineCost, 0);
+  const editCls =
+    "w-16 rounded border border-hairline bg-canvas px-1 py-0.5 text-[11px] outline-none focus:border-accent";
   return (
     <Card className="mt-4">
       <h2 className="mb-2 text-sm font-semibold">{title}</h2>
@@ -358,10 +413,32 @@ function BomTable({ bom, title = "Priced BOM" }: { bom: BomLine[]; title?: strin
               <span className="font-medium">{l.description}</span>
               <span>{money2(l.lineCost)}</span>
             </div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-subtle">
-              <span>
-                {l.qty} {l.unit} × {money2(l.unitCost)}
-              </span>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-subtle">
+              {onEdit ? (
+                <>
+                  <input
+                    className={editCls}
+                    type="number"
+                    inputMode="decimal"
+                    value={l.qty}
+                    onChange={(e) => onEdit(i, { qty: Number(e.target.value) })}
+                    aria-label="quantity"
+                  />
+                  <span>{l.unit} ×</span>
+                  <input
+                    className={editCls}
+                    type="number"
+                    inputMode="decimal"
+                    value={l.unitCost}
+                    onChange={(e) => onEdit(i, { unitCost: Number(e.target.value) })}
+                    aria-label="unit cost"
+                  />
+                </>
+              ) : (
+                <span>
+                  {l.qty} {l.unit} × {money2(l.unitCost)}
+                </span>
+              )}
               <SourceTag source={l.costSource} />
               <ConfTag c={l.confidence} />
               {l.needsVerification && (

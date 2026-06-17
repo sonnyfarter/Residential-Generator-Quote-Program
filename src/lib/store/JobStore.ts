@@ -1,4 +1,4 @@
-import type { Job, PriceBookItem, Photo, CompanyProfile } from "@/lib/types";
+import type { Job, PriceBookItem, Photo, CompanyProfile, GeneratorModel } from "@/lib/types";
 
 // Persistence abstraction. LocalStore (IndexedDB) now; CloudStore stub later.
 // All UI talks to this interface, so swapping in cloud sync is a wiring change.
@@ -23,4 +23,8 @@ export interface JobStore {
   // company profile (branding for reports)
   getCompany(): Promise<CompanyProfile | undefined>;
   saveCompany(company: CompanyProfile): Promise<void>;
+
+  // equipment catalog (empty = use the built-in seed)
+  getCatalog(): Promise<GeneratorModel[]>;
+  replaceCatalog(models: GeneratorModel[]): Promise<void>;
 }

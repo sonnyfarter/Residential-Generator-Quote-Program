@@ -166,6 +166,12 @@ export default function SetupPage() {
           Manage price book
         </Link>
         <Link
+          href="/catalog"
+          className="block w-full rounded-2xl border border-hairline bg-white py-3 text-center text-sm font-medium"
+        >
+          Generator catalog
+        </Link>
+        <Link
           href="/settings"
           className="block w-full rounded-2xl border border-hairline bg-white py-3 text-center text-sm font-medium"
         >

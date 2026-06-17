@@ -287,6 +287,11 @@ export interface Job {
   diagram?: DiagramLayout;
   /** Manually added takeoff lines (with cost). Persist across sessions. */
   customLines?: BomLine[];
+  /** Generated engine BOM, persisted so edits survive navigation/reload. */
+  engineBom?: BomLine[];
+  /** Spec-sheet full-load fuel consumption (CFH) for the selected unit & fuel.
+   *  Entered by the user from the genset spec sheet — never invented. */
+  gensetFuelCfh?: number | null;
 }
 
 // ── Company profile (Settings) ───────────────────────────────────────────────

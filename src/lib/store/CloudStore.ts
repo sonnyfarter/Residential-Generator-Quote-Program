@@ -1,5 +1,5 @@
 import type { JobStore } from "./JobStore";
-import type { Job, PriceBookItem, Photo, CompanyProfile } from "@/lib/types";
+import type { Job, PriceBookItem, Photo, CompanyProfile, GeneratorModel } from "@/lib/types";
 
 // Stub for a later phase (cloud sync). Intentionally not wired in. It exists so
 // the persistence seam is real today and adopting cloud is a swap, not a rewrite.
@@ -20,4 +20,6 @@ export class CloudStore implements JobStore {
   async upsertPriceItems(): Promise<void> { return this.notImplemented(); }
   async getCompany(): Promise<CompanyProfile | undefined> { return this.notImplemented(); }
   async saveCompany(): Promise<void> { return this.notImplemented(); }
+  async getCatalog(): Promise<GeneratorModel[]> { return this.notImplemented(); }
+  async replaceCatalog(): Promise<void> { return this.notImplemented(); }
 }

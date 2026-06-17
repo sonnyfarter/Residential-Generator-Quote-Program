@@ -1,5 +1,11 @@
 import Dexie, { type Table } from "dexie";
-import type { Job, PriceBookItem, Photo, CompanyProfile } from "@/lib/types";
+import type {
+  Job,
+  PriceBookItem,
+  Photo,
+  CompanyProfile,
+  GeneratorModel,
+} from "@/lib/types";
 
 // Photos are stored as their own records (blobs survive app close) and linked to
 // jobs by id, so a job record stays light and photos load on demand.
@@ -12,6 +18,7 @@ export class StandbyDb extends Dexie {
   photos!: Table<PhotoRecord, string>;
   priceBook!: Table<PriceBookItem, string>;
   company!: Table<CompanyProfile, string>;
+  catalog!: Table<GeneratorModel, string>;
 
   constructor() {
     super("standby-takeoff");
@@ -26,6 +33,14 @@ export class StandbyDb extends Dexie {
       photos: "id, jobId",
       priceBook: "id, category, costSource",
       company: "id",
+    });
+    // v3 adds an editable equipment catalog (real Generac data via CSV import).
+    this.version(3).stores({
+      jobs: "id, updatedAt",
+      photos: "id, jobId",
+      priceBook: "id, category, costSource",
+      company: "id",
+      catalog: "model, brand, kw",
     });
   }
 }

@@ -82,6 +82,29 @@ Based on first hands-on review:
 - **Customer report stays takeoff-free** (sell price + high-level inclusions
   only); the full BOM/takeoff remains on the internal report exclusively.
 
+## Field-feedback revision (round 3)
+
+- **Photo upload from library** — every capture spot now offers Take (camera) and
+  Upload (library/files); removed the forced `capture` on the upload path.
+- **Manual takeoff line items** — add custom priced lines (scope/desc/qty/unit/$)
+  on the Takeoff screen; persisted as `job.customLines`, flow into materials cost
+  and the internal report.
+- **Editable engine quantities** — the generated BOM persists to `job.engineBom`
+  and its qty/unit-cost are editable inline (editing the cost marks the line
+  `manual`). Quote + reports read the persisted, possibly-edited BOM.
+- **Company profile + logo (Settings)** — stored in IndexedDB; logo + contact +
+  PM email render as a letterhead on all three reports.
+- **Real email send** — `/api/send-email` (Resend) attaches a browser-rendered
+  PDF of the branded report; Email customer / Email PM. Degrades to "Open in mail
+  app" when `RESEND_API_KEY` is unset.
+- **Real Generac data (the honest way)** — per-job **spec-sheet CFH input** feeds
+  gas sizing (never invented), and a **catalog CSV import** (`/catalog`,
+  IndexedDB-backed via `useCatalog`) loads real model/MSRP/ATS/fuel-CFH data;
+  blank CFH still flags a missing input. Round-trip + validation unit-tested.
+- **App icon** — real PNG icons (192/512/180) generated dependency-free
+  (`scripts/gen-icons.mjs`), wired into the manifest + apple-touch-icon. Customer
+  proposal got an accent price banner + signature/acceptance block.
+
 ## Later phases (architected, not built)
 
 - Cloud sync (`CloudStore`), Expo/native shell, real Graybar CSV load (mechanism

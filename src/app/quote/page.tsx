@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useJob } from "@/lib/store/useJob";
-import { GENERAC_CATALOG, findModel } from "@/lib/catalog/generac";
+import { useCatalog } from "@/lib/catalog/useCatalog";
 import { computeQuote } from "@/lib/pricing/computeQuote";
 import { atsCostFor } from "@/lib/pricing/ats";
 import { Screen, Card, Field, inputCls, PrimaryButton, money, money2 } from "@/components/ui";
@@ -11,6 +11,7 @@ import { useEngineState } from "@/lib/store/useEngine";
 export default function QuotePage() {
   const { job, loading, init, update } = useJob();
   const { bom } = useEngineState();
+  const { catalog, findModel } = useCatalog();
   const [showLevers, setShowLevers] = useState(false);
   useEffect(() => {
     init();
@@ -24,7 +25,7 @@ export default function QuotePage() {
     const hazardsCost = job.items
       .filter((i) => i.type === "hazard")
       .reduce((s, i) => s + (Number(i.values.estCost) || 0), 0);
-    const fullBom = [...(bom ?? []), ...(job.customLines ?? [])];
+    const fullBom = [...(job.engineBom ?? bom ?? []), ...(job.customLines ?? [])];
     return computeQuote({
       pricing: job.pricing,
       gensetMsrp: model.msrp,
@@ -57,7 +58,7 @@ export default function QuotePage() {
             }
           >
             <option value="">Select a model…</option>
-            {GENERAC_CATALOG.map((g) => (
+            {catalog.map((g) => (
               <option key={g.model} value={g.model}>
                 {g.name} · {g.kw}kW · {g.cat} · {money(g.msrp)} MSRP
               </option>
