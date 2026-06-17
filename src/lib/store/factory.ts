@@ -22,8 +22,9 @@ export function newJob(): Job {
     house: {
       serviceAmps: 200,
       fuel: "ng",
-      elecRunFt: 25,
-      gasRunFt: 60,
+      distGenPanelFt: 45,
+      distGenGasFt: 60,
+      distGenElecMeterFt: 35,
       existingGasBtu: 0,
       gasSupplyInWc: 7,
     },
@@ -32,5 +33,6 @@ export function newJob(): Job {
     selectedModel: undefined,
     pricing: { ...PRICING_DEFAULTS },
     ai: null,
+    customLines: [],
   };
 }

@@ -105,26 +105,41 @@ export default function SetupPage() {
             </select>
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Elec run" unit="ft">
+        <p className="text-xs text-subtle">
+          Distances from the generator. These auto-fill from the Survey captures;
+          adjust here if needed.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="→ Panel" unit="ft">
             <input
               className={inputCls}
               type="number"
               inputMode="decimal"
-              value={h.elecRunFt}
+              value={h.distGenPanelFt}
               onChange={(e) =>
-                update((j) => (j.house.elecRunFt = Number(e.target.value)))
+                update((j) => (j.house.distGenPanelFt = Number(e.target.value)))
               }
             />
           </Field>
-          <Field label="Gas run" unit="ft">
+          <Field label="→ Elec mtr" unit="ft">
             <input
               className={inputCls}
               type="number"
               inputMode="decimal"
-              value={h.gasRunFt}
+              value={h.distGenElecMeterFt}
               onChange={(e) =>
-                update((j) => (j.house.gasRunFt = Number(e.target.value)))
+                update((j) => (j.house.distGenElecMeterFt = Number(e.target.value)))
+              }
+            />
+          </Field>
+          <Field label="→ Gas mtr" unit="ft">
+            <input
+              className={inputCls}
+              type="number"
+              inputMode="decimal"
+              value={h.distGenGasFt}
+              onChange={(e) =>
+                update((j) => (j.house.distGenGasFt = Number(e.target.value)))
               }
             />
           </Field>
@@ -149,6 +164,18 @@ export default function SetupPage() {
           className="block w-full rounded-2xl border border-hairline bg-white py-3 text-center text-sm font-medium"
         >
           Manage price book
+        </Link>
+        <Link
+          href="/catalog"
+          className="block w-full rounded-2xl border border-hairline bg-white py-3 text-center text-sm font-medium"
+        >
+          Generator catalog
+        </Link>
+        <Link
+          href="/settings"
+          className="block w-full rounded-2xl border border-hairline bg-white py-3 text-center text-sm font-medium"
+        >
+          Company profile & logo
         </Link>
         <button
           onClick={async () => {

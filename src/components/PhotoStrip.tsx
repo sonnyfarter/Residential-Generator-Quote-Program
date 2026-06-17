@@ -76,13 +76,26 @@ export function PhotoStrip({
           </button>
         </div>
       ))}
-      <label className="no-print flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-hairline text-subtle">
-        <span className="text-xl leading-none">＋</span>
-        <span className="text-[10px]">Photo</span>
+      {/* Take a new photo with the camera */}
+      <label className="no-print flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-hairline text-subtle active:opacity-70">
+        <span className="text-xl leading-none">📷</span>
+        <span className="text-[10px]">Take</span>
         <input
           type="file"
           accept="image/*"
           capture="environment"
+          multiple
+          className="hidden"
+          onChange={onPick}
+        />
+      </label>
+      {/* Upload existing photos from the library / files */}
+      <label className="no-print flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-hairline text-subtle active:opacity-70">
+        <span className="text-xl leading-none">🖼</span>
+        <span className="text-[10px]">Upload</span>
+        <input
+          type="file"
+          accept="image/*"
           multiple
           className="hidden"
           onChange={onPick}

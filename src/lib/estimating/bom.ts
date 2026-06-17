@@ -15,6 +15,8 @@ export interface BuildTakeoffInput {
   items: SurveyItem[];
   priceBook: PriceBookItem[];
   meterCapacityBtu?: number | null;
+  /** Spec-sheet full-load CFH entered by the user; overrides catalog value. */
+  fuelCfhOverride?: number | null;
 }
 
 const PVC_BY_TRADE: Record<string, string> = {
@@ -88,11 +90,14 @@ export function buildDeterministicTakeoff(
   };
 
   // ── Electrical ──
-  const elec = sizeElectrical({ kw: model.kw, runFt: house.elecRunFt });
+  // Feeder must reach the ATS wherever it sits (at the panel or the meter), so
+  // size the run to the worst case of the two captured distances.
+  const feederFt = Math.max(house.distGenPanelFt, house.distGenElecMeterFt);
+  const elec = sizeElectrical({ kw: model.kw, runFt: feederFt });
 
   // Feeder conductors: 2 hots + neutral + EGC ≈ 4 conductors over the run.
   const conductorId = CU_BY_AWG[elec.conductor.awg];
-  const conductorFt = house.elecRunFt * 4 * 1.1; // 10% waste
+  const conductorFt = feederFt * 4 * 1.1; // 10% waste
   pushPriced(
     "electrical",
     find(conductorId),
@@ -107,7 +112,7 @@ export function buildDeterministicTakeoff(
   pushPriced(
     "electrical",
     find(conduitId),
-    house.elecRunFt * 1.05,
+    feederFt * 1.05,
     "high",
     `${elec.conduitTrade} PVC feeder conduit`,
     true // conduit-fill table is a reduced subset
@@ -132,8 +137,8 @@ export function buildDeterministicTakeoff(
   // ── Gas ──
   const gas = sizeGas({
     fuel: house.fuel,
-    genFuelCfh: model.fuelCfh?.[house.fuel] ?? null,
-    runFt: house.gasRunFt,
+    genFuelCfh: input.fuelCfhOverride ?? model.fuelCfh?.[house.fuel] ?? null,
+    runFt: house.distGenGasFt,
     existingBtu: house.existingGasBtu,
     meterCapacityBtu: input.meterCapacityBtu ?? null,
   });
@@ -144,7 +149,7 @@ export function buildDeterministicTakeoff(
     pushPriced(
       "gas",
       find(gasId),
-      house.gasRunFt * 1.05,
+      house.distGenGasFt * 1.05,
       "high",
       `${gas.pipeSizeIn}" black iron gas line`,
       gas.needsVerification
@@ -153,7 +158,7 @@ export function buildDeterministicTakeoff(
     bom.push({
       scope: "gas",
       description: "Gas line — size pending spec-sheet fuel CFH",
-      qty: house.gasRunFt,
+      qty: house.distGenGasFt,
       unit: "ft",
       unitCost: 0,
       lineCost: 0,

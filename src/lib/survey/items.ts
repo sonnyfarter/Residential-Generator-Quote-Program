@@ -19,10 +19,14 @@ export interface SurveyItemConfig {
   key: string;
   title: string;
   subtitle: string;
-  /** required = one of the three mandatory captures. */
+  /** required = a mandatory capture for every job. */
   required: boolean;
   /** can the user add more than one? */
   multiple: boolean;
+  /** at least one photo is required for the item to count "complete". */
+  requirePhoto?: boolean;
+  /** hint shown under the photo capture (e.g. "Photo of the LRA tag"). */
+  photoHint?: string;
   fields: FieldConfig[];
 }
 
@@ -32,6 +36,8 @@ export const SURVEY_ITEMS: SurveyItemConfig[] = [
     title: "Generator location",
     subtitle: "Where the unit will sit",
     required: true,
+    requirePhoto: true,
+    photoHint: "Photo of the proposed set location",
     multiple: false,
     fields: [
       { key: "surface", label: "Mounting surface", type: "select", required: true, options: [
@@ -48,6 +54,8 @@ export const SURVEY_ITEMS: SurveyItemConfig[] = [
     title: "Gas meter / tank",
     subtitle: "Fuel source location",
     required: true,
+    requirePhoto: true,
+    photoHint: "Photo of the meter / tank and regulator",
     multiple: false,
     fields: [
       { key: "fuel", label: "Fuel", type: "select", required: true, options: [
@@ -63,6 +71,8 @@ export const SURVEY_ITEMS: SurveyItemConfig[] = [
     title: "Electric meter",
     subtitle: "Service entrance",
     required: true,
+    requirePhoto: true,
+    photoHint: "Photo of the meter & service entrance",
     multiple: false,
     fields: [
       { key: "serviceAmps", label: "Service size", type: "select", required: true, options: [
@@ -70,18 +80,21 @@ export const SURVEY_ITEMS: SurveyItemConfig[] = [
         { value: "200", label: "200 A" },
         { value: "400", label: "400 A" },
       ] },
-      { key: "distanceFt", label: "Distance to transfer switch", type: "number", unit: "ft", placeholder: "e.g. 25" },
+      { key: "distanceFt", label: "Distance to generator", type: "number", unit: "ft", required: true, placeholder: "e.g. 35" },
       { key: "notes", label: "Notes", type: "text" },
     ],
   },
   {
     key: "panel",
     title: "Main panel",
-    subtitle: "Add if separate from meter",
-    required: false,
+    subtitle: "Where the feeder lands",
+    required: true,
+    requirePhoto: true,
+    photoHint: "Photo of the panel (open door + label)",
     multiple: false,
     fields: [
-      { key: "location", label: "Location", type: "text", placeholder: "garage, basement…" },
+      { key: "location", label: "Location", type: "text", required: true, placeholder: "garage, basement…" },
+      { key: "distanceFt", label: "Distance to generator", type: "number", unit: "ft", required: true, placeholder: "e.g. 45" },
       { key: "spaces", label: "Open breaker spaces", type: "number" },
       { key: "notes", label: "Notes", type: "text" },
     ],
@@ -89,12 +102,14 @@ export const SURVEY_ITEMS: SurveyItemConfig[] = [
   {
     key: "hvac",
     title: "HVAC unit",
-    subtitle: "Largest motor load",
+    subtitle: "Largest motor load — LRA tag required",
     required: false,
     multiple: true,
+    requirePhoto: true,
+    photoHint: "Required: clear photo of the LRA / data tag",
     fields: [
       { key: "tons", label: "Size", type: "number", unit: "ton" },
-      { key: "lra", label: "Locked-rotor amps (if known)", type: "number", unit: "A" },
+      { key: "lra", label: "Locked-rotor amps (from tag)", type: "number", unit: "A" },
       { key: "notes", label: "Notes", type: "text" },
     ],
   },
@@ -104,6 +119,8 @@ export const SURVEY_ITEMS: SurveyItemConfig[] = [
     subtitle: "Anything that changes the work",
     required: false,
     multiple: true,
+    requirePhoto: true,
+    photoHint: "Photo of the obstruction / condition",
     fields: [
       { key: "kind", label: "Type", type: "select", options: [
         { value: "concrete", label: "Concrete cut / bore" },

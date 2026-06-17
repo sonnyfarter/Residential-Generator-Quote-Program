@@ -1,24 +1,49 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { reportElementToPdfBase64 } from "@/lib/pdf";
 import { useJob } from "@/lib/store/useJob";
 import { useEngineState } from "@/lib/store/useEngine";
-import { findModel } from "@/lib/catalog/generac";
+import { useCatalog } from "@/lib/catalog/useCatalog";
 import { computeQuote } from "@/lib/pricing/computeQuote";
 import { atsCostFor } from "@/lib/pricing/ats";
 import { Screen, Card, money, money2 } from "@/components/ui";
 import { ReportPhotos } from "@/components/ReportPhotos";
-import type { BomLine } from "@/lib/types";
+import type { BomLine, CompanyProfile } from "@/lib/types";
 
 type ReportKind = "contractor" | "customer" | "internal";
 
 export default function ReportsPage() {
   const { job, loading, init } = useJob();
+  const store = useJob((s) => s.store);
   const { bom, deterministic, ai } = useEngineState();
+  const { findModel } = useCatalog();
   const [kind, setKind] = useState<ReportKind>("customer");
+  const [company, setCompany] = useState<CompanyProfile | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const captureRef = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
     init();
   }, [init]);
+  useEffect(() => {
+    store.getCompany().then((c) => setCompany(c ?? null));
+  }, [store]);
+  useEffect(() => {
+    if (company?.logo) {
+      const u = URL.createObjectURL(company.logo);
+      setLogoUrl(u);
+      return () => URL.revokeObjectURL(u);
+    }
+    setLogoUrl(null);
+  }, [company]);
+
+  // Persisted (possibly edited) engine BOM + manually added lines.
+  const fullBom = useMemo(
+    () => [...(job?.engineBom ?? bom ?? []), ...(job?.customLines ?? [])],
+    [bom, job]
+  );
 
   const model = findModel(job?.selectedModel);
   const quote = useMemo(() => {
@@ -31,10 +56,10 @@ export default function ReportsPage() {
       gensetMsrp: model.msrp,
       atsCost: atsCostFor(job.house.serviceAmps),
       items: job.items,
-      bom: bom ?? undefined,
+      bom: fullBom.length ? fullBom : undefined,
       hazardsCost,
     });
-  }, [job, model, bom]);
+  }, [job, model, fullBom]);
 
   if (loading || !job) {
     return (
@@ -54,8 +79,76 @@ export default function ReportsPage() {
   }
 
   const customerEmail = job.customer.email;
+  const pmEmail = company?.pmEmail ?? "";
+
   function copy(text: string) {
     navigator.clipboard?.writeText(text);
+  }
+
+  async function sendEmail(to: string, subject: string, body: string, filename: string) {
+    if (!to || !captureRef.current) return;
+    setSending(true);
+    setSendMsg(null);
+    try {
+      const pdfBase64 = await reportElementToPdfBase64(captureRef.current);
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ to, subject, body, pdfBase64, filename }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSendMsg({ ok: false, text: data.error ?? `Failed (${res.status})` });
+      } else {
+        setSendMsg({ ok: true, text: `Sent to ${to}` });
+      }
+    } catch (e) {
+      setSendMsg({ ok: false, text: String(e) });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // ── Email subjects/bodies (shared by the send-with-PDF and mailto paths) ──
+  function customerSubject() {
+    return `Standby generator proposal — ${job!.customer.name}`;
+  }
+  function customerBody() {
+    return [
+      `Hi ${job!.customer.name || "there"},`,
+      "",
+      "Thank you for the opportunity. Your standby power proposal is attached as a PDF.",
+      "",
+      `Proposed system: ${model!.name} (${model!.kw} kW), ${job!.house.serviceAmps}A automatic transfer switch.`,
+      `Turnkey investment: ${money(quote!.sell.total)}`,
+      "",
+      company?.name ? `${company.name}` : "",
+      [company?.phone, company?.email].filter(Boolean).join(" · "),
+      company?.license ? `Lic# ${company.license}` : "",
+    ]
+      .filter((l) => l !== "")
+      .join("\n");
+  }
+  function pmSubject() {
+    return `Install packet — ${job!.customer.name} (${model!.name})`;
+  }
+  function pmBody() {
+    return [
+      `Project: ${job!.customer.name}`,
+      `Address: ${job!.customer.address}`,
+      `System: ${model!.name} (${model!.kw} kW), ${job!.house.serviceAmps}A, ${job!.house.fuel.toUpperCase()}`,
+      `Gen→panel ${job!.house.distGenPanelFt}ft · Gen→elec mtr ${job!.house.distGenElecMeterFt}ft · Gen→gas mtr ${job!.house.distGenGasFt}ft`,
+      "",
+      "Full install packet (scopes, distances, site photos) attached as a PDF.",
+    ].join("\n");
+  }
+
+  // Fallback "open in mail app" links (no attachment — that path uses the API).
+  function customerMailto(): string {
+    return `mailto:${customerEmail}?subject=${encodeURIComponent(customerSubject())}&body=${encodeURIComponent(customerBody())}`;
+  }
+  function pmMailto(): string {
+    return `mailto:${pmEmail}?subject=${encodeURIComponent(pmSubject())}&body=${encodeURIComponent(pmBody())}`;
   }
 
   return (
@@ -74,44 +167,94 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      <div className="no-print mb-4 flex gap-2">
+      <div className="no-print mb-2 flex gap-2">
         <button
           onClick={() => window.print()}
           className="flex-1 rounded-xl border border-hairline bg-white py-2 text-sm"
         >
-          Print
+          Print / PDF
         </button>
         {kind === "customer" && (
-          <a
-            href={`mailto:${customerEmail}?subject=${encodeURIComponent(
-              "Your standby generator proposal"
-            )}`}
-            className="flex-1 rounded-xl border border-hairline bg-white py-2 text-center text-sm"
+          <button
+            onClick={() => sendEmail(customerEmail, customerSubject(), customerBody(), `Proposal-${slug(job!.customer.name)}.pdf`)}
+            disabled={!customerEmail || sending}
+            className="flex-1 rounded-xl bg-accent py-2 text-center text-sm font-semibold text-white disabled:opacity-40"
           >
-            Email customer
+            {sending ? "Sending…" : "Email customer (PDF)"}
+          </button>
+        )}
+        {kind === "contractor" && (
+          <button
+            onClick={() => sendEmail(pmEmail, pmSubject(), pmBody(), `Install-Packet-${slug(job!.customer.name)}.pdf`)}
+            disabled={!pmEmail || sending}
+            className="flex-1 rounded-xl bg-accent py-2 text-center text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {sending ? "Sending…" : pmEmail ? "Email PM (PDF)" : "Set PM email in Settings"}
+          </button>
+        )}
+      </div>
+      <div className="no-print mb-4 flex items-center justify-between gap-2">
+        {kind !== "internal" && (
+          <a
+            href={kind === "customer" ? customerMailto() : pmMailto()}
+            className="text-xs text-accent underline"
+          >
+            Open in mail app instead
           </a>
+        )}
+        {sendMsg && (
+          <span className={`text-xs ${sendMsg.ok ? "text-ok" : "text-bad"}`}>{sendMsg.text}</span>
         )}
       </div>
 
-      {kind === "contractor" && (
-        <ContractorReport job={job} model={model} det={deterministic} bom={bom} onCopy={copy} />
-      )}
-      {kind === "customer" && (
-        <CustomerReport job={job} model={model} price={quote.sell.total} onCopy={copy} />
-      )}
-      {kind === "internal" && (
-        <InternalReport job={job} model={model} quote={quote} bom={bom} ai={ai} onCopy={copy} />
-      )}
+      <div ref={captureRef}>
+        {kind === "contractor" && (
+          <ContractorReport job={job} model={model} det={deterministic} bom={fullBom} company={company} logoUrl={logoUrl} onCopy={copy} />
+        )}
+        {kind === "customer" && (
+          <CustomerReport job={job} model={model} price={quote.sell.total} company={company} logoUrl={logoUrl} onCopy={copy} />
+        )}
+        {kind === "internal" && (
+          <InternalReport job={job} model={model} quote={quote} bom={fullBom} ai={ai} company={company} logoUrl={logoUrl} onCopy={copy} />
+        )}
+      </div>
     </Screen>
   );
 }
 
+function slug(s: string): string {
+  return (s || "job").trim().replace(/[^\w]+/g, "-").replace(/^-+|-+$/g, "") || "job";
+}
+
+// Branded letterhead shown on every report.
+function Letterhead({ company, logoUrl }: { company: CompanyProfile | null; logoUrl: string | null }) {
+  if (!company && !logoUrl) return null;
+  return (
+    <div className="mb-3 flex items-center gap-3 border-b border-hairline pb-3">
+      {logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logoUrl} alt="logo" className="h-12 w-12 object-contain" />
+      )}
+      <div className="leading-tight">
+        <div className="text-sm font-semibold">{company?.name}</div>
+        <div className="text-[11px] text-subtle">
+          {[company?.phone, company?.email].filter(Boolean).join(" · ")}
+        </div>
+        {company?.license && (
+          <div className="text-[11px] text-subtle">Lic# {company.license}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Contractor: scopes + site, NO pricing ────────────────────────────────────
-function ContractorReport({ job, model, det, bom, onCopy }: any) {
+function ContractorReport({ job, model, det, bom, company, logoUrl, onCopy }: any) {
   const elecBom: BomLine[] = (bom ?? []).filter((l: BomLine) => l.scope === "electrical");
   const gasBom: BomLine[] = (bom ?? []).filter((l: BomLine) => l.scope === "gas");
   return (
     <Card>
+      <Letterhead company={company} logoUrl={logoUrl} />
       <ReportHeader title="Project Information Form" job={job} />
       <Section title="Proposed system">
         {model.name} · {model.kw} kW {model.cat}-cooled · {job.house.serviceAmps}A service · {job.house.fuel.toUpperCase()}
@@ -145,9 +288,10 @@ function ContractorReport({ job, model, det, bom, onCopy }: any) {
 }
 
 // ── Customer: marked-up SELL only ────────────────────────────────────────────
-function CustomerReport({ job, model, price, onCopy }: any) {
+function CustomerReport({ job, model, price, company, logoUrl, onCopy }: any) {
   return (
     <Card>
+      <Letterhead company={company} logoUrl={logoUrl} />
       <div className="mb-3 border-b border-hairline pb-3">
         <div className="text-lg font-semibold">Standby Power Proposal</div>
         <div className="text-sm text-subtle">{job.customer.name}</div>
@@ -168,13 +312,26 @@ function CustomerReport({ job, model, price, onCopy }: any) {
           <li>Permits and inspection coordination</li>
         </ul>
       </Section>
-      <div className="my-4 rounded-xl2 bg-canvas p-4 text-center">
-        <div className="text-xs uppercase tracking-wide text-subtle">
+      <div className="my-4 overflow-hidden rounded-xl2 border border-accent/20">
+        <div className="bg-accent px-4 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-white">
           Turnkey investment
         </div>
-        <div className="text-3xl font-bold text-accent">{money(price)}</div>
+        <div className="bg-canvas px-4 py-4 text-center">
+          <div className="text-4xl font-bold text-accent">{money(price)}</div>
+          <div className="mt-1 text-[11px] text-subtle">
+            Complete installation — equipment, labor, permits & startup
+          </div>
+        </div>
       </div>
-      <p className="text-xs text-subtle">
+      <Section title="Acceptance">
+        <div className="grid grid-cols-2 gap-4 pt-2 text-xs text-subtle">
+          <div className="border-t border-ink pt-1">Customer signature / date</div>
+          <div className="border-t border-ink pt-1">
+            {company?.name || "Company"} representative / date
+          </div>
+        </div>
+      </Section>
+      <p className="mt-2 text-[11px] text-subtle">
         Proposal valid 30 days. Final price subject to site verification and permit
         requirements.
       </p>
@@ -184,12 +341,13 @@ function CustomerReport({ job, model, price, onCopy }: any) {
 }
 
 // ── Internal: full cost→sell→profit, DO NOT SEND ─────────────────────────────
-function InternalReport({ job, model, quote, bom, ai, onCopy }: any) {
+function InternalReport({ job, model, quote, bom, ai, company, logoUrl, onCopy }: any) {
   return (
     <Card>
       <div className="mb-3 rounded-lg bg-bad px-3 py-2 text-center text-sm font-bold text-white">
         INTERNAL — DO NOT SEND
       </div>
+      <Letterhead company={company} logoUrl={logoUrl} />
       <ReportHeader title="Internal Cost Sheet" job={job} />
       <Section title="Unit">
         {model.name} · MSRP {money(model.msrp)}{" "}

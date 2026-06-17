@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useJob } from "@/lib/store/useJob";
 import { useEngineState } from "@/lib/store/useEngine";
-import { findModel } from "@/lib/catalog/generac";
+import { useCatalog } from "@/lib/catalog/useCatalog";
 import { buildDeterministicTakeoff } from "@/lib/estimating/bom";
 import { mergeAiIntoBom } from "@/lib/estimating/merge";
 import type { AiTakeoffResponse, BomLine, DeterministicTakeoff } from "@/lib/types";
@@ -12,7 +12,8 @@ import { Screen, Card, PrimaryButton, money2 } from "@/components/ui";
 export default function TakeoffPage() {
   const { job, loading, init, update } = useJob();
   const store = useJob((s) => s.store);
-  const { bom, deterministic, ai, setResult } = useEngineState();
+  const { findModel } = useCatalog();
+  const { deterministic, ai, setResult } = useEngineState();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiUsed, setAiUsed] = useState(false);
@@ -40,8 +41,10 @@ export default function TakeoffPage() {
       house: { ...job.house, existingGasBtu },
       items: job.items,
       priceBook,
+      fuelCfhOverride: job.gensetFuelCfh ?? null,
     });
     setResult({ bom: det.bom, deterministic: det, ai: null });
+    await update((j) => (j.engineBom = det.bom));
     return det;
   }
 
@@ -88,7 +91,10 @@ export default function TakeoffPage() {
       const priceBook = await store.getPriceBook();
       const merged = mergeAiIntoBom(det, aiResp, priceBook);
       setResult({ bom: merged, deterministic: det, ai: aiResp });
-      await update((j) => (j.ai = aiResp));
+      await update((j) => {
+        j.ai = aiResp;
+        j.engineBom = merged;
+      });
       setAiUsed(true);
     } catch (e) {
       setError(String(e));
@@ -118,9 +124,29 @@ export default function TakeoffPage() {
       <Card className="space-y-2">
         <ConfirmRow label="Generator" value={`${model.name} (${model.kw} kW)`} />
         <ConfirmRow label="Service" value={`${job.house.serviceAmps} A`} />
-        <ConfirmRow label="Elec run" value={`${job.house.elecRunFt} ft`} />
-        <ConfirmRow label="Gas run" value={`${job.house.gasRunFt} ft`} />
+        <ConfirmRow label="Gen → panel" value={`${job.house.distGenPanelFt} ft`} />
+        <ConfirmRow label="Gen → elec meter" value={`${job.house.distGenElecMeterFt} ft`} />
+        <ConfirmRow label="Gen → gas meter" value={`${job.house.distGenGasFt} ft`} />
         <ConfirmRow label="Fuel" value={job.house.fuel.toUpperCase()} />
+        <div className="border-t border-hairline pt-2">
+          <label className="block text-xs font-medium text-subtle">
+            Generator full-load fuel — {job.house.fuel.toUpperCase()} (CFH, from spec sheet)
+          </label>
+          <input
+            className="mt-1 w-full rounded-xl border border-hairline bg-canvas px-3 py-2 text-base outline-none focus:border-accent"
+            type="number"
+            inputMode="decimal"
+            placeholder="e.g. 220 — leave blank if unknown"
+            value={job.gensetFuelCfh ?? ""}
+            onChange={(e) =>
+              update((j) => (j.gensetFuelCfh = e.target.value === "" ? null : Number(e.target.value)))
+            }
+          />
+          <p className="mt-1 text-[11px] text-subtle">
+            Enter the unit&apos;s nameplate/spec consumption to size the gas line.
+            Left blank, the takeoff flags it as a missing input rather than guessing.
+          </p>
+        </div>
       </Card>
 
       <div className="mt-4 space-y-2">
@@ -146,16 +172,159 @@ export default function TakeoffPage() {
         <DeterministicSummary det={deterministic} />
       )}
 
-      {bom && <BomTable bom={bom} />}
+      {job.engineBom && job.engineBom.length > 0 && (
+        <BomTable
+          bom={job.engineBom}
+          title="Priced BOM — tap a qty or cost to edit"
+          onEdit={(idx, change) =>
+            update((j) => {
+              const line = j.engineBom![idx];
+              const qty = change.qty ?? line.qty;
+              const unitCost = change.unitCost ?? line.unitCost;
+              j.engineBom![idx] = {
+                ...line,
+                qty,
+                unitCost,
+                lineCost: Math.round(qty * unitCost * 100) / 100,
+                costSource: change.unitCost !== undefined ? "manual" : line.costSource,
+              };
+            })
+          }
+        />
+      )}
+
+      <CustomLines
+        lines={job.customLines ?? []}
+        onAdd={(line) =>
+          update((j) => {
+            j.customLines = [...(j.customLines ?? []), line];
+          })
+        }
+        onRemove={(idx) =>
+          update((j) => {
+            j.customLines = (j.customLines ?? []).filter((_, i) => i !== idx);
+          })
+        }
+      />
 
       {aiUsed && ai && <AiPanel ai={ai} />}
 
-      {bom && (
+      {((job.engineBom && job.engineBom.length > 0) ||
+        (job.customLines && job.customLines.length > 0)) && (
         <div className="mt-6">
           <PrimaryButton href="/reports">View reports</PrimaryButton>
         </div>
       )}
     </Screen>
+  );
+}
+
+function CustomLines({
+  lines,
+  onAdd,
+  onRemove,
+}: {
+  lines: BomLine[];
+  onAdd: (line: BomLine) => void;
+  onRemove: (idx: number) => void;
+}) {
+  const [scope, setScope] = useState<"electrical" | "gas">("electrical");
+  const [desc, setDesc] = useState("");
+  const [qty, setQty] = useState(1);
+  const [unit, setUnit] = useState("ea");
+  const [cost, setCost] = useState(0);
+
+  function add() {
+    if (!desc.trim()) return;
+    onAdd({
+      scope,
+      description: desc.trim(),
+      qty,
+      unit: unit as BomLine["unit"],
+      unitCost: cost,
+      lineCost: Math.round(qty * cost * 100) / 100,
+      costSource: "manual",
+      confidence: "high",
+    });
+    setDesc("");
+    setQty(1);
+    setCost(0);
+  }
+
+  return (
+    <Card className="mt-4">
+      <h2 className="mb-2 text-sm font-semibold">Manual line items</h2>
+      <p className="mb-3 text-[11px] text-subtle">
+        Add anything the engine didn&apos;t capture (extra materials, sub work,
+        rentals). These flow into the materials cost and the internal report.
+      </p>
+      {lines.length > 0 && (
+        <div className="mb-3 divide-y divide-hairline">
+          {lines.map((l, i) => (
+            <div key={i} className="flex items-center justify-between py-1.5 text-sm">
+              <span className="flex-1">
+                {l.description}{" "}
+                <span className="text-[10px] text-subtle">
+                  {l.qty} {l.unit} · {l.scope}
+                </span>
+              </span>
+              <span className="mr-2">{money2(l.lineCost)}</span>
+              <button className="text-bad" onClick={() => onRemove(i)} aria-label="remove">
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <input
+            className="w-full rounded-xl border border-hairline bg-canvas px-3 py-2 text-sm outline-none focus:border-accent"
+            placeholder="Description (e.g. Core drill 8in wall)"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          <select
+            className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
+            value={scope}
+            onChange={(e) => setScope(e.target.value as "electrical" | "gas")}
+          >
+            <option value="electrical">Elec</option>
+            <option value="gas">Gas</option>
+          </select>
+          <input
+            className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
+            type="number"
+            inputMode="decimal"
+            placeholder="Qty"
+            value={qty}
+            onChange={(e) => setQty(Number(e.target.value))}
+          />
+          <input
+            className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
+            placeholder="unit"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+          />
+          <input
+            className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
+            type="number"
+            inputMode="decimal"
+            placeholder="$/unit"
+            value={cost || ""}
+            onChange={(e) => setCost(Number(e.target.value))}
+          />
+        </div>
+        <button
+          onClick={add}
+          className="w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white active:opacity-80"
+        >
+          Add line item
+        </button>
+      </div>
+    </Card>
   );
 }
 
@@ -222,11 +391,21 @@ function DeterministicSummary({ det }: { det: DeterministicTakeoff }) {
   );
 }
 
-function BomTable({ bom }: { bom: BomLine[] }) {
+function BomTable({
+  bom,
+  title = "Priced BOM",
+  onEdit,
+}: {
+  bom: BomLine[];
+  title?: string;
+  onEdit?: (idx: number, change: { qty?: number; unitCost?: number }) => void;
+}) {
   const total = bom.reduce((s, l) => s + l.lineCost, 0);
+  const editCls =
+    "w-16 rounded border border-hairline bg-canvas px-1 py-0.5 text-[11px] outline-none focus:border-accent";
   return (
     <Card className="mt-4">
-      <h2 className="mb-2 text-sm font-semibold">Priced BOM</h2>
+      <h2 className="mb-2 text-sm font-semibold">{title}</h2>
       <div className="divide-y divide-hairline">
         {bom.map((l, i) => (
           <div key={i} className="py-2 text-sm">
@@ -234,10 +413,32 @@ function BomTable({ bom }: { bom: BomLine[] }) {
               <span className="font-medium">{l.description}</span>
               <span>{money2(l.lineCost)}</span>
             </div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-subtle">
-              <span>
-                {l.qty} {l.unit} × {money2(l.unitCost)}
-              </span>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-subtle">
+              {onEdit ? (
+                <>
+                  <input
+                    className={editCls}
+                    type="number"
+                    inputMode="decimal"
+                    value={l.qty}
+                    onChange={(e) => onEdit(i, { qty: Number(e.target.value) })}
+                    aria-label="quantity"
+                  />
+                  <span>{l.unit} ×</span>
+                  <input
+                    className={editCls}
+                    type="number"
+                    inputMode="decimal"
+                    value={l.unitCost}
+                    onChange={(e) => onEdit(i, { unitCost: Number(e.target.value) })}
+                    aria-label="unit cost"
+                  />
+                </>
+              ) : (
+                <span>
+                  {l.qty} {l.unit} × {money2(l.unitCost)}
+                </span>
+              )}
               <SourceTag source={l.costSource} />
               <ConfTag c={l.confidence} />
               {l.needsVerification && (

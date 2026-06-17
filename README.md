@@ -26,6 +26,15 @@ Scripts: `npm run dev` · `npm run build` · `npm run typecheck` · `npm run lin
 | Var | Where | Purpose |
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | **server only** | Used by `/api/takeoff` to call Anthropic (`claude-sonnet-4-6`). Never exposed to the client. |
+| `RESEND_API_KEY` | **server only** | Used by `/api/send-email` to send branded reports with a PDF attachment via [Resend](https://resend.com). Optional — without it, the "Email …" buttons report that email isn't configured and you can still use "Open in mail app". |
+| `EMAIL_FROM` | server only | Sender address, e.g. `"Acme Power <quotes@acme.com>"`. Requires a domain verified in Resend. Defaults to `onboarding@resend.dev` (testing — only delivers to your own verified address). |
+
+### Sending reports by email
+The Reports screen generates a PDF of the on-screen branded report in the
+browser (html2canvas + jsPDF) and POSTs it to `/api/send-email`, which attaches
+it and sends via Resend. **Email customer** sends the proposal; **Email PM**
+sends the install packet. Set the PM address in **Settings → Company profile**.
+If `RESEND_API_KEY` is unset, use **Open in mail app** (prefilled, no attachment).
 
 ## Flow (bottom nav)
 

@@ -60,6 +60,51 @@ Running record of decisions and assumptions.
 - `tsc --noEmit`, `next lint`, `vitest` (10 tests incl. acceptance), and
   `next build` all pass. Sample job runs end-to-end through the engine.
 
+## Field-feedback revision (round 2)
+
+Based on first hands-on review:
+- **Gas screen rebuilt.** Appliance picker with per-type typical nameplate BTU
+  presets (`lib/survey/gasAppliances.ts`), a per-appliance **gas/electric toggle**
+  (electric units drop out of the gas load), manual BTU override, and a
+  **worst-case** auto-populate. Preset values are labeled "confirm against the
+  nameplate" — typical figures, not presented as verified.
+- **Explicit run distances.** `HouseInfo` now carries three captured runs —
+  generator→panel, generator→gas meter, generator→electric meter. The feeder is
+  sized to the worst case of panel/meter runs; the gas line uses the gas-meter
+  run. They auto-fill from the survey captures and are editable in Setup.
+- **Required-photo gating.** Items can require a photo to count complete.
+  **HVAC requires an LRA/data-tag photo**; generator, both meters, and the panel
+  require a photo too.
+- **Panel promoted to a required capture** with a distance-to-generator field.
+- **Interactive site diagram.** Drag the home footprint (move + resize) and each
+  marker; links from the generator show the captured distances. Layout persists
+  (`item.pin` + `job.diagram`), committed on release to avoid IndexedDB thrash.
+- **Customer report stays takeoff-free** (sell price + high-level inclusions
+  only); the full BOM/takeoff remains on the internal report exclusively.
+
+## Field-feedback revision (round 3)
+
+- **Photo upload from library** — every capture spot now offers Take (camera) and
+  Upload (library/files); removed the forced `capture` on the upload path.
+- **Manual takeoff line items** — add custom priced lines (scope/desc/qty/unit/$)
+  on the Takeoff screen; persisted as `job.customLines`, flow into materials cost
+  and the internal report.
+- **Editable engine quantities** — the generated BOM persists to `job.engineBom`
+  and its qty/unit-cost are editable inline (editing the cost marks the line
+  `manual`). Quote + reports read the persisted, possibly-edited BOM.
+- **Company profile + logo (Settings)** — stored in IndexedDB; logo + contact +
+  PM email render as a letterhead on all three reports.
+- **Real email send** — `/api/send-email` (Resend) attaches a browser-rendered
+  PDF of the branded report; Email customer / Email PM. Degrades to "Open in mail
+  app" when `RESEND_API_KEY` is unset.
+- **Real Generac data (the honest way)** — per-job **spec-sheet CFH input** feeds
+  gas sizing (never invented), and a **catalog CSV import** (`/catalog`,
+  IndexedDB-backed via `useCatalog`) loads real model/MSRP/ATS/fuel-CFH data;
+  blank CFH still flags a missing input. Round-trip + validation unit-tested.
+- **App icon** — real PNG icons (192/512/180) generated dependency-free
+  (`scripts/gen-icons.mjs`), wired into the manifest + apple-touch-icon. Customer
+  proposal got an accent price banner + signature/acceptance block.
+
 ## Later phases (architected, not built)
 
 - Cloud sync (`CloudStore`), Expo/native shell, real Graybar CSV load (mechanism
