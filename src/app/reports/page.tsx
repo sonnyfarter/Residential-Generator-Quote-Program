@@ -9,6 +9,7 @@ import { computeQuote } from "@/lib/pricing/computeQuote";
 import { atsCostFor } from "@/lib/pricing/ats";
 import { Screen, Card, money, money2 } from "@/components/ui";
 import { ReportPhotos } from "@/components/ReportPhotos";
+import { SiteDiagramView } from "@/components/SiteDiagramView";
 import type { BomLine, CompanyProfile } from "@/lib/types";
 
 type ReportKind = "contractor" | "customer" | "internal";
@@ -279,6 +280,13 @@ function ContractorReport({ job, model, det, bom, company, logoUrl, onCopy }: an
       <Section title="Generator siting">
         {job.items.find((i: any) => i.type === "generator")?.values?.notes || "See photos."}
       </Section>
+      <Section title="Generator site layout & measurements">
+        <SiteDiagramView
+          items={job.items}
+          layout={job.diagram}
+          distances={{ panel: job.house.distGenPanelFt, gas: job.house.distGenGasFt, elec: job.house.distGenElecMeterFt }}
+        />
+      </Section>
       <Section title="Site conditions & hazards">
         <ReportPhotos jobId={job.id} />
       </Section>
@@ -311,6 +319,13 @@ function CustomerReport({ job, model, price, company, logoUrl, onCopy }: any) {
           <li>Gas line connection & startup</li>
           <li>Permits and inspection coordination</li>
         </ul>
+      </Section>
+      <Section title="Proposed generator location">
+        <SiteDiagramView
+          items={job.items}
+          layout={job.diagram}
+          distances={{ panel: job.house.distGenPanelFt, gas: job.house.distGenGasFt, elec: job.house.distGenElecMeterFt }}
+        />
       </Section>
       <div className="my-4 overflow-hidden rounded-xl2 border border-accent/20">
         <div className="bg-accent px-4 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-white">
@@ -400,6 +415,13 @@ function InternalReport({ job, model, quote, bom, ai, company, logoUrl, onCopy }
         )}
       </Section>
 
+      <Section title="Generator site layout & measurements">
+        <SiteDiagramView
+          items={job.items}
+          layout={job.diagram}
+          distances={{ panel: job.house.distGenPanelFt, gas: job.house.distGenGasFt, elec: job.house.distGenElecMeterFt }}
+        />
+      </Section>
       <Section title="All site photos">
         <ReportPhotos jobId={job.id} />
       </Section>
