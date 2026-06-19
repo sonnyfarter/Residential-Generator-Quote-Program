@@ -6,13 +6,13 @@ import type { SurveyItem, DiagramLayout } from "@/lib/types";
 // markers, and the generator→meter/panel distance links with measurements.
 // Mirrors the interactive SiteDiagram layout but with no pointer handlers.
 
-const META: Record<string, { label: string; color: string }> = {
-  generator: { label: "GEN", color: "#34c759" },
-  electric_meter: { label: "E-MTR", color: "#0a84ff" },
-  gas_meter: { label: "G-MTR", color: "#ff9f0a" },
-  panel: { label: "PANEL", color: "#5e5ce6" },
-  hvac: { label: "HVAC", color: "#6e6e73" },
-  hazard: { label: "!", color: "#ff3b30" },
+const META: Record<string, { label: string; name: string; color: string }> = {
+  generator: { label: "GEN", name: "Generator", color: "#34c759" },
+  electric_meter: { label: "E", name: "Elec meter", color: "#0a84ff" },
+  gas_meter: { label: "G", name: "Gas meter", color: "#ff9f0a" },
+  panel: { label: "P", name: "Main panel", color: "#5e5ce6" },
+  hvac: { label: "H", name: "HVAC", color: "#6e6e73" },
+  hazard: { label: "!", name: "Hazard", color: "#ff3b30" },
 };
 
 const DEFAULT_RING: Record<string, { x: number; y: number }> = {
@@ -45,6 +45,11 @@ export function SiteDiagramView({
   return (
     <div>
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-hairline bg-white">
+        {/* North arrow */}
+        <div className="absolute right-2 top-2 flex flex-col items-center text-subtle">
+          <span className="text-sm leading-none">↑</span>
+          <span className="text-[9px] font-semibold leading-none">N</span>
+        </div>
         {genPos && (
           <svg className="absolute inset-0 h-full w-full">
             {present
@@ -92,10 +97,13 @@ export function SiteDiagramView({
               style={{ left: `${p.x}%`, top: `${p.y}%` }}
             >
               <span
-                className="flex h-7 min-w-7 items-center justify-center rounded-full px-1.5 text-[9px] font-bold text-white shadow"
+                className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white shadow"
                 style={{ background: m.color }}
               >
                 {m.label}
+              </span>
+              <span className="mt-0.5 whitespace-nowrap rounded bg-white/85 px-1 text-[8px] font-medium text-ink">
+                {m.name}
               </span>
             </div>
           );
