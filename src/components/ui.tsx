@@ -14,7 +14,7 @@ export function Screen({
 }) {
   return (
     <main className="px-4 pt-[max(env(safe-area-inset-top),1rem)]">
-      <header className="pb-4 pt-2">
+      <header className="no-print pb-4 pt-2">
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {subtitle && <p className="mt-0.5 text-sm text-subtle">{subtitle}</p>}
       </header>
