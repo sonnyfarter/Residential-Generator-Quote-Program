@@ -25,10 +25,28 @@ select {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Print: one report at a time, clean pages ── */
+/* ── Print: drop the phone column + app chrome, report fills the page ── */
 @media print {
   .no-print {
     display: none !important;
+  }
+  /* App shell is a phone-width column on screen — go full width for paper. */
+  #appShell {
+    max-width: none !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  #appShell main {
+    padding: 0 !important;
+  }
+  /* Strip the card border/shadow so the report reads as a document. */
+  #printArea > div {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
   }
   .print-card {
     break-inside: avoid;
@@ -40,7 +58,10 @@ select {
   @page {
     margin: 0.6in;
   }
+  html,
   body {
-    background: white;
+    background: white !important;
+    height: auto !important;
   }
 }
+

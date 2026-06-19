@@ -38,7 +38,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <PwaRegister />
-        <div className="mx-auto min-h-dvh max-w-md pb-24">{children}</div>
+        <div id="appShell" className="mx-auto min-h-dvh max-w-md pb-24">
+          {children}
+        </div>
         <BottomNav />
       </body>
     </html>

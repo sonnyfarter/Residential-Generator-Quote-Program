@@ -208,7 +208,7 @@ export default function ReportsPage() {
         )}
       </div>
 
-      <div ref={captureRef}>
+      <div ref={captureRef} id="printArea">
         {kind === "contractor" && (
           <ContractorReport job={job} model={model} det={deterministic} bom={fullBom} company={company} logoUrl={logoUrl} onCopy={copy} />
         )}
