@@ -20,16 +20,19 @@ export function mergeAiIntoBom(
   for (const add of ai.added_or_changed_items) {
     const match = matchPrice(add.item, priceBook);
     const unitCost = match?.unitCost ?? 0;
+    // Clamp AI quantity to a sane, non-negative range (defense against bad/hostile output).
+    const rawQty = Number(add.qty);
+    const qty = Number.isFinite(rawQty) ? Math.min(Math.max(rawQty, 0), 100000) : 0;
     bom.push({
-      scope: add.scope,
-      description: `${add.item} (AI: ${add.reason})`,
-      qty: add.qty,
+      scope: add.scope === "gas" ? "gas" : "electrical",
+      description: `${String(add.item).slice(0, 120)} (AI: ${String(add.reason).slice(0, 160)})`,
+      qty,
       unit: (match?.unit as BomLine["unit"]) ?? (add.unit as BomLine["unit"]) ?? "ea",
       priceBookId: match?.id,
       unitCost,
-      lineCost: Math.round(unitCost * add.qty * 100) / 100,
+      lineCost: Math.round(unitCost * qty * 100) / 100,
       costSource: match?.costSource ?? "none",
-      confidence: add.confidence,
+      confidence: ["high", "med", "low"].includes(add.confidence) ? add.confidence : "low",
       needsVerification: !match,
       note: match ? undefined : "AI-suggested item — no price book match; price manually.",
     });

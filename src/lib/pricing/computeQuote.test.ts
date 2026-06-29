@@ -41,6 +41,15 @@ describe("computeQuote — §6 acceptance check", () => {
     expect(r.cost.materials).toBe(100);
   });
 
+  it("adds AI extra labor hours into the labor cost", () => {
+    const base = computeQuote({ pricing: PRICING_DEFAULTS, gensetMsrp: 6309, atsCost: 850 });
+    const withAi = computeQuote({
+      pricing: PRICING_DEFAULTS, gensetMsrp: 6309, atsCost: 850, extraLaborHours: 4,
+    });
+    // 4 extra hours × $60 = $240 more labor cost.
+    expect(withAi.cost.labor - base.cost.labor).toBe(240);
+  });
+
   it("honors 'asis' and 'fixed' cost modes", () => {
     const asis = computeQuote({
       pricing: { ...PRICING_DEFAULTS, costMode: "asis" },

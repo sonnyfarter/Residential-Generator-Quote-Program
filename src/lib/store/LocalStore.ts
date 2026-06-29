@@ -41,6 +41,18 @@ export class LocalStore implements JobStore {
     await db().photos.delete(id);
   }
 
+  async gcPhotos(): Promise<number> {
+    const [jobs, photoIds] = await Promise.all([
+      db().jobs.toArray(),
+      db().photos.toCollection().primaryKeys(),
+    ]);
+    const referenced = new Set<string>();
+    for (const j of jobs) for (const it of j.items) for (const pid of it.photoIds) referenced.add(pid);
+    const orphans = (photoIds as string[]).filter((id) => !referenced.has(id));
+    if (orphans.length) await db().photos.bulkDelete(orphans);
+    return orphans.length;
+  }
+
   async getPriceBook(): Promise<PriceBookItem[]> {
     const count = await db().priceBook.count();
     if (count === 0) {

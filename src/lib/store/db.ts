@@ -52,6 +52,13 @@ export function db(): StandbyDb {
   if (typeof window === "undefined") {
     throw new Error("IndexedDB is only available in the browser.");
   }
-  if (!_db) _db = new StandbyDb();
+  if (!_db) {
+    _db = new StandbyDb();
+    // If another tab upgrades the schema, close here so it isn't blocked; the
+    // page keeps working on the already-open connection until reload.
+    _db.on("versionchange", () => {
+      _db?.close();
+    });
+  }
   return _db;
 }

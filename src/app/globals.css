@@ -27,6 +27,11 @@ select {
 
 /* ── Print: drop the phone column + app chrome, report fills the page ── */
 @media print {
+  /* Keep colored banners (accent price bar, INTERNAL warning) when printing. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   .no-print {
     display: none !important;
   }

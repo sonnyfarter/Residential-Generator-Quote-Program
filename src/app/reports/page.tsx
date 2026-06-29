@@ -52,6 +52,8 @@ export default function ReportsPage() {
     const hazardsCost = job.items
       .filter((i) => i.type === "hazard")
       .reduce((s, i) => s + (Number(i.values.estCost) || 0), 0);
+    const d = job.ai?.labor_hours_delta;
+    const extraLaborHours = d ? (d.electrical || 0) + (d.gas || 0) + (d.site || 0) : 0;
     return computeQuote({
       pricing: job.pricing,
       gensetMsrp: model.msrp,
@@ -59,8 +61,12 @@ export default function ReportsPage() {
       items: job.items,
       bom: fullBom.length ? fullBom : undefined,
       hazardsCost,
+      extraLaborHours,
     });
   }, [job, model, fullBom]);
+
+  // Engineering summary survives reload via persisted engineMeta.
+  const engMeta = deterministic ?? job?.engineMeta ?? null;
 
   if (loading || !job) {
     return (
@@ -181,7 +187,7 @@ export default function ReportsPage() {
             disabled={!customerEmail || sending}
             className="flex-1 rounded-xl bg-accent py-2 text-center text-sm font-semibold text-white disabled:opacity-40"
           >
-            {sending ? "Sending…" : "Email customer (PDF)"}
+            {sending ? "Sending…" : customerEmail ? "Email customer (PDF)" : "Add customer email in Setup"}
           </button>
         )}
         {kind === "contractor" && (
@@ -210,7 +216,7 @@ export default function ReportsPage() {
 
       <div ref={captureRef} id="printArea">
         {kind === "contractor" && (
-          <ContractorReport job={job} model={model} det={deterministic} bom={fullBom} company={company} logoUrl={logoUrl} onCopy={copy} />
+          <ContractorReport job={job} model={model} det={engMeta} bom={fullBom} company={company} logoUrl={logoUrl} onCopy={copy} />
         )}
         {kind === "customer" && (
           <CustomerReport job={job} model={model} price={quote.sell.total} company={company} logoUrl={logoUrl} onCopy={copy} />

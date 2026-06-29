@@ -9,7 +9,7 @@ import {
   WORST_CASE_GAS_KEYS,
 } from "@/lib/survey/gasAppliances";
 import type { GasAppliance } from "@/lib/types";
-import { Screen, Card, Field, inputCls, PrimaryButton } from "@/components/ui";
+import { Screen, Card, Field, inputCls, PrimaryButton, num } from "@/components/ui";
 
 export default function GasPage() {
   const { job, loading, init, update } = useJob();
@@ -128,7 +128,7 @@ export default function GasPage() {
                   type="number"
                   inputMode="numeric"
                   value={a.btu || ""}
-                  onChange={(e) => patch(idx, { btu: Number(e.target.value) })}
+                  onChange={(e) => patch(idx, { btu: num(e.target.value) })}
                 />
               </Field>
               <div className="flex overflow-hidden rounded-xl border border-hairline">

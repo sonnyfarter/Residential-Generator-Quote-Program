@@ -5,7 +5,7 @@ import { useJob } from "@/lib/store/useJob";
 import { useCatalog } from "@/lib/catalog/useCatalog";
 import { computeQuote } from "@/lib/pricing/computeQuote";
 import { atsCostFor } from "@/lib/pricing/ats";
-import { Screen, Card, Field, inputCls, PrimaryButton, money, money2 } from "@/components/ui";
+import { Screen, Card, Field, inputCls, PrimaryButton, money, money2, num } from "@/components/ui";
 import { useEngineState } from "@/lib/store/useEngine";
 
 export default function QuotePage() {
@@ -26,6 +26,8 @@ export default function QuotePage() {
       .filter((i) => i.type === "hazard")
       .reduce((s, i) => s + (Number(i.values.estCost) || 0), 0);
     const fullBom = [...(job.engineBom ?? bom ?? []), ...(job.customLines ?? [])];
+    const d = job.ai?.labor_hours_delta;
+    const extraLaborHours = d ? (d.electrical || 0) + (d.gas || 0) + (d.site || 0) : 0;
     return computeQuote({
       pricing: job.pricing,
       gensetMsrp: model.msrp,
@@ -33,8 +35,13 @@ export default function QuotePage() {
       items: job.items,
       bom: fullBom.length ? fullBom : undefined,
       hazardsCost,
+      extraLaborHours,
     });
   }, [job, model, bom]);
+
+  const hasTakeoff = Boolean(
+    (job?.engineBom && job.engineBom.length) || (job?.customLines && job.customLines.length)
+  );
 
   if (loading || !job) {
     return (
@@ -85,7 +92,7 @@ export default function QuotePage() {
             <Row label="Equipment cost" value={money2(quote.cost.equipment)} />
             <Row label="Labor cost" value={money2(quote.cost.labor)} />
             <Row
-              label={`Materials cost${bom ? " (from takeoff)" : " (allowances)"}`}
+              label={`Materials cost${hasTakeoff ? " (from takeoff)" : " (allowances)"}`}
               value={money2(quote.cost.materials)}
             />
             <Row label="Permits" value={money2(quote.cost.permits)} />
@@ -185,7 +192,7 @@ function LeverNum({ label, value, step, onChange }: { label: string; value: numb
         inputMode="decimal"
         step={step}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => onChange(num(e.target.value))}
       />
     </Field>
   );

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TAKEOFF_SYSTEM_PROMPT, parseAiJson } from "@/lib/ai/takeoffPrompt";
+import { guard } from "@/lib/api/guard";
 import type { AiTakeoffResponse, DeterministicTakeoff } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 const MODEL = "claude-sonnet-4-6";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const ALLOWED_MEDIA = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 interface TakeoffRequestBody {
   inputs: Record<string, unknown>;
@@ -14,6 +16,10 @@ interface TakeoffRequestBody {
 }
 
 export async function POST(req: NextRequest) {
+  // ~12 MB cap (8 photos of base64), 20 calls / 10 min per IP, same-origin only.
+  const blocked = guard(req, { name: "takeoff", limit: 20, windowMs: 600_000, maxBytes: 12_000_000 });
+  if (blocked) return blocked;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -43,9 +49,11 @@ export async function POST(req: NextRequest) {
 
   for (const p of (body.photos ?? []).slice(0, 8)) {
     const { mediaType, data } = splitBase64(p);
+    // Whitelist the media type so a client can't smuggle an arbitrary data: prefix.
+    const media = ALLOWED_MEDIA.has(mediaType) ? mediaType : "image/jpeg";
     content.push({
       type: "image",
-      source: { type: "base64", media_type: mediaType, data },
+      source: { type: "base64", media_type: media, data },
     });
   }
 
@@ -65,17 +73,19 @@ export async function POST(req: NextRequest) {
         messages: [{ role: "user", content }],
       }),
     });
-  } catch (e) {
+  } catch {
     return NextResponse.json(
-      { error: `Network error calling Anthropic: ${String(e)}` },
+      { error: "Network error contacting the AI service." },
       { status: 502 }
     );
   }
 
   if (!resp.ok) {
-    const text = await resp.text();
+    // Log detail server-side; don't leak the upstream body to the client.
+    const text = await resp.text().catch(() => "");
+    console.error(`Anthropic ${resp.status}: ${text.slice(0, 500)}`);
     return NextResponse.json(
-      { error: `Anthropic ${resp.status}: ${text.slice(0, 500)}` },
+      { error: `AI service error (${resp.status}).` },
       { status: 502 }
     );
   }

@@ -19,6 +19,8 @@ export interface ComputeQuoteInput {
   bom?: BomLine[];
   /** Hazard remediation cost (concrete cut/bore/trench etc.), at cost. */
   hazardsCost?: number;
+  /** Extra labor hours (e.g. AI-proposed delta) added on top of the defaults. */
+  extraLaborHours?: number;
 }
 
 /**
@@ -34,7 +36,8 @@ export function computeQuote(input: ComputeQuoteInput): QuoteResult {
     gensetCost + input.atsCost + (input.accessoriesCost ?? 0)
   );
 
-  const laborHours = p.elecHours + p.plumbHours + p.siteHours;
+  const laborHours =
+    p.elecHours + p.plumbHours + p.siteHours + Math.max(0, input.extraLaborHours ?? 0);
   const laborCost = round2(laborHours * p.laborRate);
 
   // Materials: priced BOM when a takeoff exists, else flat allowances.

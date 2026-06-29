@@ -52,8 +52,9 @@ export function PhotoStrip({
     e.target.value = "";
   }
 
-  async function remove(id: string) {
-    await store.deletePhoto(id);
+  function remove(id: string) {
+    // List-only: the blob is left in place so a Cancel doesn't lose a saved
+    // photo. Unreferenced blobs are garbage-collected on next app load.
     onChange(photoIds.filter((p) => p !== id));
   }
 

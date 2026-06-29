@@ -23,17 +23,24 @@ const PVC_BY_TRADE: Record<string, string> = {
   '0.75"': "pvc-0.75",
   '1"': "pvc-1",
   '1.25"': "pvc-1.25",
+  '1.5"': "pvc-1.5",
+  '2"': "pvc-2",
 };
 
 const CU_BY_AWG: Record<string, string> = {
+  "8": "cu-6-thhn", // smallest stocked feeder is #6
   "6": "cu-6-thhn",
   "4": "cu-4-thhn",
   "2": "cu-2-thhn",
   "1": "cu-1-thhn",
   "1/0": "cu-1/0-thhn",
+  "2/0": "cu-2/0-thhn",
+  "3/0": "cu-3/0-thhn",
+  "4/0": "cu-4/0-thhn",
 };
 
 const GAS_BY_SIZE: Record<string, string> = {
+  "0.5": "bi-0.5",
   "0.75": "bi-0.75",
   "1": "bi-1",
   "1.25": "bi-1.25",

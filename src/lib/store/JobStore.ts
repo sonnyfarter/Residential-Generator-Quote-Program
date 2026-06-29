@@ -14,6 +14,8 @@ export interface JobStore {
   getPhoto(id: string): Promise<Photo | undefined>;
   getJobPhotos(jobId: string): Promise<Photo[]>;
   deletePhoto(id: string): Promise<void>;
+  /** Delete photo blobs no longer referenced by any job's survey items. */
+  gcPhotos(): Promise<number>;
 
   // price book
   getPriceBook(): Promise<PriceBookItem[]>;

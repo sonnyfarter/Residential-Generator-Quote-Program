@@ -105,6 +105,42 @@ Based on first hands-on review:
   (`scripts/gen-icons.mjs`), wired into the manifest + apple-touch-icon. Customer
   proposal got an accent price banner + signature/acceptance block.
 
+## Pre-initial-testing audit (multi-agent, adversarially verified)
+
+Ran a 6-dimension audit (correctness, estimating math, security, persistence,
+PWA/print, UX) with every finding independently verified. 39 confirmed; fixed:
+
+- **Critical — stale PWA cache.** Service worker was cache-first for navigations
+  with a never-bumped cache name → testers pinned to the first deploy forever.
+  Now **network-first for navigations** (offline cache fallback), cache-first for
+  hashed assets, cache bumped to `standby-v2`.
+- **$0 unpriced BOM lines.** Engine returned conductor/conduit/pipe sizes that had
+  no price-book entry (≥2/0 feeders, 1.5"/2" conduit, 0.5" gas). Added seed items
+  + map entries; tests assert no `none`-source feeder/conduit/gas lines for 22/26/48 kW
+  even on long runs.
+- **Report data-loss on reload.** Contractor scope + engineering summary were read
+  from in-memory state; now persisted as `job.engineMeta` and used by reports.
+- **NaN inputs.** Added `num()` coercion across all numeric inputs and guarded the
+  money formatters (no more "$NaN").
+- **AI labor ignored.** `computeQuote` now adds the AI `labor_hours_delta`.
+- **Gas over-table.** No longer extrapolates past the longest tabulated run —
+  leaves the size unresolved and flagged.
+- **Gas double-count.** Takeoff now excludes electric appliances from the gas load.
+- **Photo data-loss / orphans.** Removal is list-only (Cancel no longer loses a
+  saved photo); unreferenced blobs are garbage-collected on load (`gcPhotos`).
+- **Can't delete items.** Added remove for HVAC/hazard survey items; added a
+  **Jobs list** (`/jobs`) so previous customers stay reachable; init() is now
+  idempotent/concurrency-guarded.
+- **Open public endpoints.** `/api/takeoff` and `/api/send-email` now enforce
+  same-origin + per-IP rate limits + payload caps; upstream error bodies no longer
+  leak to the client; image media types whitelisted; AI quantities clamped.
+- **Misc:** print color-adjust (banners print), pinch-zoom re-enabled, Dexie
+  versionchange handling, diagram robust to items added after mount.
+
+Known/accepted limitations (not blocking single-user testing): multi-tab
+concurrent edits are last-writer-wins; price-book has no per-line edit (CSV only);
+the electrical engine models 1φ 240V (large 3φ liquid-cooled units are flagged).
+
 ## Later phases (architected, not built)
 
 - Cloud sync (`CloudStore`), Expo/native shell, real Graybar CSV load (mechanism

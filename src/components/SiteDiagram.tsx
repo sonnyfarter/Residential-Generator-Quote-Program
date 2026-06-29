@@ -78,15 +78,23 @@ export function SiteDiagram({
     }
   }
 
+  // Robust position lookup — items added after mount aren't in `pins` state yet,
+  // so fall back to their saved pin / default ring instead of crashing.
+  const pinFor = (it: SurveyItem) =>
+    pins[it.id] ?? it.pin ?? DEFAULT_RING[it.type] ?? { x: 50, y: 50 };
+
   function end() {
     if (drag.current) {
       drag.current = null;
-      onCommit(pins, house);
+      // Commit positions for every present item (including any added after mount).
+      const merged: Record<string, { x: number; y: number }> = {};
+      for (const it of present) merged[it.id] = pinFor(it);
+      onCommit(merged, house);
     }
   }
 
-  const genId = present.find((i) => i.type === "generator")?.id;
-  const genPos = genId ? pins[genId] : undefined;
+  const gen = present.find((i) => i.type === "generator");
+  const genPos = gen ? pinFor(gen) : undefined;
 
   return (
     <div>
@@ -108,7 +116,7 @@ export function SiteDiagram({
             {present
               .filter((i) => ["panel", "gas_meter", "electric_meter"].includes(i.type))
               .map((i) => {
-                const p = pins[i.id];
+                const p = pinFor(i);
                 const dist = Number(i.values.distanceFt);
                 return (
                   <g key={i.id}>
@@ -155,7 +163,7 @@ export function SiteDiagram({
 
         {/* item pins */}
         {present.map((it) => {
-          const p = pins[it.id];
+          const p = pinFor(it);
           const m = META[it.type];
           return (
             <div
