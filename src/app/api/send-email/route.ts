@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guard } from "@/lib/api/guard";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,11 @@ interface SendBody {
 }
 
 export async function POST(req: NextRequest) {
+  // ~15 MB cap (PDF attachment), 10 sends / 10 min per IP, same-origin only —
+  // limits abuse of the owner-funded Resend relay.
+  const blocked = guard(req, { name: "send-email", limit: 10, windowMs: 600_000, maxBytes: 15_000_000 });
+  if (blocked) return blocked;
+
   const apiKey = process.env.RESEND_API_KEY;
   // Resend allows onboarding@resend.dev for testing to your own verified email;
   // set EMAIL_FROM to a verified domain address for production sending.
@@ -68,9 +74,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (!resp.ok) {
-    const text = await resp.text();
+    const text = await resp.text().catch(() => "");
+    console.error(`Resend ${resp.status}: ${text.slice(0, 500)}`);
+    // 422 from Resend usually means an unverified sender/recipient in test mode.
+    const hint = resp.status === 422 ? " Verify your domain/recipient in Resend." : "";
     return NextResponse.json(
-      { error: `Email provider ${resp.status}: ${text.slice(0, 500)}` },
+      { error: `Email service error (${resp.status}).${hint}` },
       { status: 502 }
     );
   }

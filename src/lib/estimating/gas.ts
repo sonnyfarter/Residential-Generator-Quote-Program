@@ -108,5 +108,7 @@ function capacityAtLength(
   for (const r of rows) {
     if (runFt <= r.len) return r.cfh;
   }
-  return rows.length ? rows[rows.length - 1].cfh : null;
+  // Beyond the longest tabulated length → do NOT extrapolate (would undersize).
+  // Return null so the engine leaves the size unresolved and flags it.
+  return null;
 }

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useJob } from "@/lib/store/useJob";
-import { Screen, Card, Field, inputCls, PrimaryButton } from "@/components/ui";
+import { Screen, Card, Field, inputCls, PrimaryButton, num } from "@/components/ui";
 
 export default function SetupPage() {
   const { job, loading, init, update, reset } = useJob();
@@ -84,7 +84,7 @@ export default function SetupPage() {
               className={inputCls}
               value={h.serviceAmps}
               onChange={(e) =>
-                update((j) => (j.house.serviceAmps = Number(e.target.value) as 100 | 200 | 400))
+                update((j) => (j.house.serviceAmps = num(e.target.value) as 100 | 200 | 400))
               }
             >
               <option value={100}>100</option>
@@ -117,7 +117,7 @@ export default function SetupPage() {
               inputMode="decimal"
               value={h.distGenPanelFt}
               onChange={(e) =>
-                update((j) => (j.house.distGenPanelFt = Number(e.target.value)))
+                update((j) => (j.house.distGenPanelFt = num(e.target.value)))
               }
             />
           </Field>
@@ -128,7 +128,7 @@ export default function SetupPage() {
               inputMode="decimal"
               value={h.distGenElecMeterFt}
               onChange={(e) =>
-                update((j) => (j.house.distGenElecMeterFt = Number(e.target.value)))
+                update((j) => (j.house.distGenElecMeterFt = num(e.target.value)))
               }
             />
           </Field>
@@ -139,7 +139,7 @@ export default function SetupPage() {
               inputMode="decimal"
               value={h.distGenGasFt}
               onChange={(e) =>
-                update((j) => (j.house.distGenGasFt = Number(e.target.value)))
+                update((j) => (j.house.distGenGasFt = num(e.target.value)))
               }
             />
           </Field>
@@ -151,7 +151,7 @@ export default function SetupPage() {
             inputMode="decimal"
             value={h.gasSupplyInWc}
             onChange={(e) =>
-              update((j) => (j.house.gasSupplyInWc = Number(e.target.value)))
+              update((j) => (j.house.gasSupplyInWc = num(e.target.value)))
             }
           />
         </Field>
@@ -159,6 +159,12 @@ export default function SetupPage() {
 
       <div className="mt-6 space-y-2">
         <PrimaryButton href="/gas">Continue to Gas</PrimaryButton>
+        <Link
+          href="/jobs"
+          className="block w-full rounded-2xl border border-hairline bg-white py-3 text-center text-sm font-medium"
+        >
+          Jobs / switch customer
+        </Link>
         <Link
           href="/pricebook"
           className="block w-full rounded-2xl border border-hairline bg-white py-3 text-center text-sm font-medium"

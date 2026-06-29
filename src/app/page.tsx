@@ -56,6 +56,14 @@ export default function SurveyPage() {
     });
   }
 
+  async function removeItem(id: string) {
+    await update((j) => {
+      j.items = j.items.filter((i) => i.id !== id);
+      syncHouse(j.house, j.items);
+    });
+    // Orphaned photo blobs are cleaned up on next load (gcPhotos).
+  }
+
   const requiredComplete = required.every(
     (c) => itemsOfType(c.key)[0]?.status === "complete"
   );
@@ -92,22 +100,25 @@ export default function SurveyPage() {
           return (
             <div key={c.key}>
               {items.map((it) => (
-                <button
-                  key={it.id}
-                  onClick={() => setEditing({ config: c, item: it })}
-                  className="mb-2 block w-full text-left"
-                >
-                  <Card className="flex items-center gap-3 active:opacity-70">
-                    <StatusDot status={it.status} />
-                    <div className="flex-1">
-                      <div className="font-medium">{c.title}</div>
-                      <div className="text-xs text-subtle">
-                        {it.photoIds.length} photo(s)
-                      </div>
+                <Card key={it.id} className="mb-2 flex items-center gap-3">
+                  <StatusDot status={it.status} />
+                  <button
+                    onClick={() => setEditing({ config: c, item: it })}
+                    className="flex-1 text-left active:opacity-70"
+                  >
+                    <div className="font-medium">{c.title}</div>
+                    <div className="text-xs text-subtle">
+                      {it.photoIds.length} photo(s)
                     </div>
-                    <span className="text-subtle">›</span>
-                  </Card>
-                </button>
+                  </button>
+                  <button
+                    onClick={() => removeItem(it.id)}
+                    className="px-2 text-bad"
+                    aria-label={`remove ${c.title}`}
+                  >
+                    ✕
+                  </button>
+                </Card>
               ))}
               <button
                 onClick={() => openNew(c)}

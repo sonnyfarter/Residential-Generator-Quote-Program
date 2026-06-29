@@ -36,6 +36,9 @@ export const SEED_PRICE_BOOK: PriceBookItem[] = [
   s("cu-2-thhn", "conductor", "SEED-CU2", "#2 CU THHN", "ft", 3.10, { awg: "2", material: "CU", insulation: "THHN" }),
   s("cu-1-thhn", "conductor", "SEED-CU1", "#1 CU THHN", "ft", 3.95, { awg: "1", material: "CU", insulation: "THHN" }),
   s("cu-1/0-thhn", "conductor", "SEED-CU1_0", "#1/0 CU THHN", "ft", 4.85, { awg: "1/0", material: "CU", insulation: "THHN" }),
+  s("cu-2/0-thhn", "conductor", "SEED-CU2_0", "#2/0 CU THHN", "ft", 6.05, { awg: "2/0", material: "CU", insulation: "THHN" }),
+  s("cu-3/0-thhn", "conductor", "SEED-CU3_0", "#3/0 CU THHN", "ft", 7.55, { awg: "3/0", material: "CU", insulation: "THHN" }),
+  s("cu-4/0-thhn", "conductor", "SEED-CU4_0", "#4/0 CU THHN", "ft", 9.40, { awg: "4/0", material: "CU", insulation: "THHN" }),
   // AL equivalents
   s("al-2-thhn", "conductor", "SEED-AL2", "#2 AL THHN", "ft", 1.15, { awg: "2", material: "AL", insulation: "THHN" }),
   s("al-1/0-thhn", "conductor", "SEED-AL1_0", "#1/0 AL THHN", "ft", 1.55, { awg: "1/0", material: "AL", insulation: "THHN" }),
@@ -45,6 +48,8 @@ export const SEED_PRICE_BOOK: PriceBookItem[] = [
   s("pvc-0.75", "conduit", "SEED-PVC075", '3/4" PVC Sch 40', "ft", 0.95, { size: 0.75, material: "PVC" }),
   s("pvc-1", "conduit", "SEED-PVC100", '1" PVC Sch 40', "ft", 1.35, { size: 1, material: "PVC" }),
   s("pvc-1.25", "conduit", "SEED-PVC125", '1-1/4" PVC Sch 40', "ft", 1.85, { size: 1.25, material: "PVC" }),
+  s("pvc-1.5", "conduit", "SEED-PVC150", '1-1/2" PVC Sch 40', "ft", 2.35, { size: 1.5, material: "PVC" }),
+  s("pvc-2", "conduit", "SEED-PVC200", '2" PVC Sch 40', "ft", 2.95, { size: 2, material: "PVC" }),
   s("lfmc-whip", "whip", "SEED-WHIP", "LFMC generator whip w/ fittings (3-4 ft)", "ea", 38.0, { type: "LFMC" }),
   s("lb-body", "fitting", "SEED-LB", "PVC LB conduit body", "ea", 12.5, { type: "LB" }),
   s("pvc-fittings", "fitting", "SEED-PVCFIT", "PVC fittings/glue allowance (per run)", "ea", 24.0, {}),
@@ -65,6 +70,7 @@ export const SEED_PRICE_BOOK: PriceBookItem[] = [
   s("pmm", "misc", "SEED-PMM", "Power management / load-shed module", "ea", 165.0, { type: "load-shed" }),
 
   // ── Gas: black iron + fittings ──
+  s("bi-0.5", "gas_pipe", "SEED-BI050", '1/2" black iron Sch 40', "ft", 1.85, { size: 0.5, material: "black-iron" }),
   s("bi-0.75", "gas_pipe", "SEED-BI075", '3/4" black iron Sch 40', "ft", 2.40, { size: 0.75, material: "black-iron" }),
   s("bi-1", "gas_pipe", "SEED-BI100", '1" black iron Sch 40', "ft", 3.30, { size: 1, material: "black-iron" }),
   s("bi-1.25", "gas_pipe", "SEED-BI125", '1-1/4" black iron Sch 40', "ft", 4.55, { size: 1.25, material: "black-iron" }),

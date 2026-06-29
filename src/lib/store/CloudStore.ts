@@ -15,6 +15,7 @@ export class CloudStore implements JobStore {
   async getPhoto(): Promise<Photo | undefined> { return this.notImplemented(); }
   async getJobPhotos(): Promise<Photo[]> { return this.notImplemented(); }
   async deletePhoto(): Promise<void> { return this.notImplemented(); }
+  async gcPhotos(): Promise<number> { return this.notImplemented(); }
   async getPriceBook(): Promise<PriceBookItem[]> { return this.notImplemented(); }
   async replacePriceBook(): Promise<void> { return this.notImplemented(); }
   async upsertPriceItems(): Promise<void> { return this.notImplemented(); }

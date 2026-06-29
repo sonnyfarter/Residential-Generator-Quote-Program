@@ -68,4 +68,11 @@ describe("sizeGas", () => {
     expect(r.meterAdequate).toBeNull();
     expect(r.missingInputs.some((m) => m.includes("meter"))).toBe(true);
   });
+
+  it("does NOT extrapolate beyond the longest tabulated run (flags instead)", () => {
+    // 200 ft exceeds the reduced table's 100 ft buckets → no silent undersizing.
+    const r = sizeGas({ fuel: "ng", genFuelCfh: 200, runFt: 200, existingBtu: 0 });
+    expect(r.pipeSizeIn).toBeNull();
+    expect(r.needsVerification).toBe(true);
+  });
 });

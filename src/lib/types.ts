@@ -292,6 +292,8 @@ export interface Job {
   /** Spec-sheet full-load fuel consumption (CFH) for the selected unit & fuel.
    *  Entered by the user from the genset spec sheet — never invented. */
   gensetFuelCfh?: number | null;
+  /** Persisted engineering summary so reports survive reload (no Blobs). */
+  engineMeta?: Pick<DeterministicTakeoff, "electrical" | "gas" | "flags" | "missingInputs">;
 }
 
 // ── Company profile (Settings) ───────────────────────────────────────────────

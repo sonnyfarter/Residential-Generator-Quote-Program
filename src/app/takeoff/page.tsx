@@ -7,7 +7,7 @@ import { useCatalog } from "@/lib/catalog/useCatalog";
 import { buildDeterministicTakeoff } from "@/lib/estimating/bom";
 import { mergeAiIntoBom } from "@/lib/estimating/merge";
 import type { AiTakeoffResponse, BomLine, DeterministicTakeoff } from "@/lib/types";
-import { Screen, Card, PrimaryButton, money2 } from "@/components/ui";
+import { Screen, Card, PrimaryButton, money2, num } from "@/components/ui";
 
 export default function TakeoffPage() {
   const { job, loading, init, update } = useJob();
@@ -35,7 +35,9 @@ export default function TakeoffPage() {
   async function buildBaseline(): Promise<DeterministicTakeoff | null> {
     if (!job || !model) return null;
     const priceBook = await store.getPriceBook();
-    const existingGasBtu = job.gasAppliances.reduce((s, a) => s + (a.btu || 0), 0);
+    const existingGasBtu = job.gasAppliances
+      .filter((a) => a.fuel === "gas")
+      .reduce((s, a) => s + (a.btu || 0), 0);
     const det = buildDeterministicTakeoff({
       model,
       house: { ...job.house, existingGasBtu },
@@ -44,7 +46,15 @@ export default function TakeoffPage() {
       fuelCfhOverride: job.gensetFuelCfh ?? null,
     });
     setResult({ bom: det.bom, deterministic: det, ai: null });
-    await update((j) => (j.engineBom = det.bom));
+    await update((j) => {
+      j.engineBom = det.bom;
+      j.engineMeta = {
+        electrical: det.electrical,
+        gas: det.gas,
+        flags: det.flags,
+        missingInputs: det.missingInputs,
+      };
+    });
     return det;
   }
 
@@ -139,7 +149,7 @@ export default function TakeoffPage() {
             placeholder="e.g. 220 — leave blank if unknown"
             value={job.gensetFuelCfh ?? ""}
             onChange={(e) =>
-              update((j) => (j.gensetFuelCfh = e.target.value === "" ? null : Number(e.target.value)))
+              update((j) => (j.gensetFuelCfh = e.target.value === "" ? null : num(e.target.value)))
             }
           />
           <p className="mt-1 text-[11px] text-subtle">
@@ -300,7 +310,7 @@ function CustomLines({
             inputMode="decimal"
             placeholder="Qty"
             value={qty}
-            onChange={(e) => setQty(Number(e.target.value))}
+            onChange={(e) => setQty(num(e.target.value))}
           />
           <input
             className="rounded-xl border border-hairline bg-canvas px-2 py-2 text-sm"
@@ -314,7 +324,7 @@ function CustomLines({
             inputMode="decimal"
             placeholder="$/unit"
             value={cost || ""}
-            onChange={(e) => setCost(Number(e.target.value))}
+            onChange={(e) => setCost(num(e.target.value))}
           />
         </div>
         <button
@@ -421,7 +431,7 @@ function BomTable({
                     type="number"
                     inputMode="decimal"
                     value={l.qty}
-                    onChange={(e) => onEdit(i, { qty: Number(e.target.value) })}
+                    onChange={(e) => onEdit(i, { qty: num(e.target.value) })}
                     aria-label="quantity"
                   />
                   <span>{l.unit} ×</span>
@@ -430,7 +440,7 @@ function BomTable({
                     type="number"
                     inputMode="decimal"
                     value={l.unitCost}
-                    onChange={(e) => onEdit(i, { unitCost: Number(e.target.value) })}
+                    onChange={(e) => onEdit(i, { unitCost: num(e.target.value) })}
                     aria-label="unit cost"
                   />
                 </>
